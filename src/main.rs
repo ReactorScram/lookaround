@@ -10,6 +10,8 @@ use std::{
 use mac_address::get_mac_address;
 use thiserror::Error;
 
+mod tlv;
+
 #[derive (Debug, Error)]
 enum AppError {
 	#[error (transparent)]
@@ -56,10 +58,10 @@ fn main () -> Result <(), AppError> {
 	}
 	
 	match args.next ().as_ref ().map (|s| &s[..]) {
-		None => return Err (CliArgError::MissingSubcommand.into ()),
+		None => Err (CliArgError::MissingSubcommand)?,
 		Some ("client") => client ()?,
 		Some ("server") => server ()?,
-		Some (x) => return Err (CliArgError::UnknownSubcommand (x.to_string ()).into ()),
+		Some (x) => Err (CliArgError::UnknownSubcommand (x.to_string ()))?,
 	}
 	
 	Ok (())
