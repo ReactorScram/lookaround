@@ -4,7 +4,7 @@
 _Has this ever happened to you?_
 
 LookAround is a Rust program for looking up your computers' MAC and IP addresses
-within a LAN.
+within a LAN. There's no central server, so it's not a look-up, it's a look-around.
 
 ```text
 $ lookaround client
@@ -13,7 +13,7 @@ Found 3 peers:
 11:11:11:11:11:11 = 192.168.1.101:9040 # Your laptop
 22:22:22:22:22:22 = 192.168.1.102:9040 # Your desktop
 33:33:33:33:33:33 = 192.168.1.103:9040 # Your home server
-# MAC address       IP address
+# Claimed MAC       IP address
 ```
 
 The LookAround client uses IP multicast to find LookAround servers within the
@@ -71,3 +71,6 @@ Use the [kazupon Git commit message convention](https://github.com/kazupon/git-c
 
 ## License
 [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)
+
+## This Git repo
+This repo's upstream is https://six-five-six-four.com/git/reactor/lookaround.
