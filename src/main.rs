@@ -137,9 +137,8 @@ fn server () -> Result <(), AppError> {
 	let params = CommonParams::default ();
 	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, params.server_port)).unwrap ();
 	
-	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
-	
 	loop {
+		socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
 		println! ("Waiting for messages...");
 		let (req, remote_addr) = recv_msg_from (&socket)?;
 		
