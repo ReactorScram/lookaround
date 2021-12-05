@@ -7,6 +7,7 @@ use std::{
 	},
 };
 
+use mac_address::get_mac_address;
 use thiserror::Error;
 
 #[derive (Debug, Error)]
@@ -44,6 +45,15 @@ fn main () -> Result <(), AppError> {
 	let mut args = env::args ();
 	
 	let _exe_name = args.next ();
+	
+	match get_mac_address() {
+		Ok(Some(ma)) => {
+			println!("MAC addr = {}", ma);
+			println!("bytes = {:?}", ma.bytes());
+		}
+		Ok(None) => println!("No MAC address found."),
+		Err(e) => println!("{:?}", e),
+	}
 	
 	match args.next ().as_ref ().map (|s| &s[..]) {
 		None => return Err (CliArgError::MissingSubcommand.into ()),
