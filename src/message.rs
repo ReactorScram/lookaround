@@ -11,7 +11,10 @@ pub const PACKET_SIZE: usize = 1024;
 
 #[derive (Debug)]
 pub enum Message {
-	Request (Option <[u8; 6]>),
+	Request {
+		idem_id: [u8; 8],
+		mac: Option <[u8; 6]>
+	},
 	Response (Option <[u8; 6]>),
 }
 
@@ -31,8 +34,12 @@ impl Message {
 		w.write_all (&MAGIC_NUMBER)?;
 		
 		match self {
-			Self::Request (mac) => {
+			Self::Request {
+				idem_id,
+				mac,
+			}=> {
 				w.write_all (&[1])?;
+				w.write_all (&idem_id[..])?;
 				Self::write_mac_opt (w, *mac)?;
 			},
 			Self::Response (mac) => {
@@ -68,8 +75,14 @@ impl Message {
 		
 		Ok (match t {
 			1 => {
+				let mut idem_id = [0u8; 8];
+				r.read_exact (&mut idem_id)?;
+				
 				let mac = Self::read_mac_opt (r)?;
-				Self::Request (mac)
+				Self::Request {
+					idem_id,
+					mac,
+				}
 			},
 			2 => {
 				let mac = Self::read_mac_opt (r)?;

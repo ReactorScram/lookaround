@@ -87,14 +87,26 @@ fn main () -> Result <(), AppError> {
 }
 
 fn client () -> Result <(), AppError> {
+	use rand::RngCore;
+	
 	let params = CommonParams::default ();
 	let socket = UdpSocket::bind ("0.0.0.0:0")?;
 	
 	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ()))?;
 	socket.set_read_timeout (Some (Duration::from_millis (1_000)))?;
 	
-	let msg = Message::Request (None).to_vec ()?;
-	socket.send_to (&msg, (params.multicast_addr, params.server_port))?;
+	let mut idem_id = [0u8; 8];
+	rand::thread_rng ().fill_bytes (&mut idem_id);
+	
+	let msg = Message::Request {
+		idem_id,
+		mac: None,
+	}.to_vec ()?;
+	
+	for _ in 0..5 {
+		socket.send_to (&msg, (params.multicast_addr, params.server_port))?;
+		std::thread::sleep (Duration::from_millis (50));
+	}
 	
 	let start_time = Instant::now ();
 	
@@ -139,13 +151,26 @@ fn server () -> Result <(), AppError> {
 	
 	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
 	
+	let mut recent_idem_ids = Vec::with_capacity (32);
+	
 	loop {
 		println! ("Waiting for messages...");
 		let (req, remote_addr) = recv_msg_from (&socket)?;
 		
 		let resp = match req {
-			Message::Request (None) => {
-				Some (Message::Response (our_mac))
+			Message::Request {
+				mac: None,
+				idem_id,
+			} => {
+				if recent_idem_ids.contains (&idem_id) {
+					println! ("Ignoring request we already processed");
+					None
+				}
+				else {
+					recent_idem_ids.insert (0, idem_id);
+					recent_idem_ids.truncate (30);
+					Some (Message::Response (our_mac))
+				}
 			},
 			_ => continue,
 		};
