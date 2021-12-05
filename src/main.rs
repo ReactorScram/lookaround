@@ -2,6 +2,7 @@ use std::{
 	env,
 	net::{
 		Ipv4Addr,
+		SocketAddr,
 		SocketAddrV4,
 		UdpSocket,
 	},
@@ -10,12 +11,26 @@ use std::{
 use mac_address::get_mac_address;
 use thiserror::Error;
 
+mod message;
 mod tlv;
+
+use message::{
+	PACKET_SIZE,
+	Message,
+};
 
 #[derive (Debug, Error)]
 enum AppError {
 	#[error (transparent)]
 	CliArgs (#[from] CliArgError),
+	#[error (transparent)]
+	Io (#[from] std::io::Error),
+	#[error (transparent)]
+	MacAddr (#[from] mac_address::MacAddressError),
+	#[error (transparent)]
+	Message (#[from] message::MessageError),
+	#[error (transparent)]
+	Tlv (#[from] tlv::TlvError),
 }
 
 #[derive (Debug, Error)]
@@ -58,10 +73,10 @@ fn main () -> Result <(), AppError> {
 	}
 	
 	match args.next ().as_ref ().map (|s| &s[..]) {
-		None => Err (CliArgError::MissingSubcommand)?,
+		None => return Err (CliArgError::MissingSubcommand.into ()),
 		Some ("client") => client ()?,
 		Some ("server") => server ()?,
-		Some (x) => Err (CliArgError::UnknownSubcommand (x.to_string ()))?,
+		Some (x) => return Err (CliArgError::UnknownSubcommand (x.to_string ()).into ()),
 	}
 	
 	Ok (())
@@ -73,30 +88,51 @@ fn client () -> Result <(), AppError> {
 	
 	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
 	
-	socket.send_to ("hi there".as_bytes (), (params.multicast_addr, params.server_port)).unwrap ();
+	let msg = Message::Request (None).to_vec ()?;
 	
-	let mut buf = vec! [0u8; 4096];
-	let (bytes_recved, remote_addr) = socket.recv_from (&mut buf).unwrap ();
-	buf.truncate (bytes_recved);
-	let _buf = buf;
+	socket.send_to (&msg, (params.multicast_addr, params.server_port)).unwrap ();
+	
+	let (resp, remote_addr) = recv_msg_from (&socket)?;
+	
 	dbg! (remote_addr);
 	
 	Ok (())
 }
 
 fn server () -> Result <(), AppError> {
+	let our_mac = get_mac_address ()?.map (|x| x.bytes ());
+	if our_mac.is_none () {
+		println! ("Warning: Can't find our own MAC address. We won't be able to respond to MAC-specific lookaround requests");
+	}
+	
 	let params = CommonParams::default ();
 	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, params.server_port)).unwrap ();
 	
 	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
 	
-	let mut buf = vec! [0u8; 4096];
-	let (bytes_recved, remote_addr) = socket.recv_from (&mut buf).unwrap ();
-	buf.truncate (bytes_recved);
-	let _buf = buf;
+	let (req, remote_addr) = recv_msg_from (&socket)?;
 	dbg! (remote_addr);
 	
-	socket.send_to ("hi there".as_bytes (), remote_addr).unwrap ();
+	let resp = match req {
+		Message::Request (None) => {
+			Some (Message::Response (our_mac))
+		},
+		_ => None,
+	};
+	
+	if let Some (resp) = resp {
+		socket.send_to (&resp.to_vec ()?, remote_addr).unwrap ();
+	}
 	
 	Ok (())
+}
+
+fn recv_msg_from (socket: &UdpSocket) -> Result <(Message, SocketAddr), AppError> 
+{
+	let mut buf = vec! [0u8; PACKET_SIZE];
+	let (bytes_recved, remote_addr) = socket.recv_from (&mut buf)?;
+	buf.truncate (bytes_recved);
+	let msg = Message::from_slice (&buf)?;
+	
+	Ok ((msg, remote_addr))
 }

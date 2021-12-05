@@ -10,11 +10,13 @@ pub enum TlvError {
 	CallerBufferTooSmall,
 	#[error (transparent)]
 	Io (#[from] std::io::Error),
+	#[error ("Actual bytes didn't match expected bytes")]
+	NotExpected,
 	#[error (transparent)]
 	TryFromInt (#[from] std::num::TryFromIntError),
 }
 
-struct Writer <W> {
+pub struct Writer <W> {
 	_x: std::marker::PhantomData <W>,
 }
 
@@ -24,9 +26,9 @@ impl <W: std::io::Write> Writer <W> {
 		Ok (())
 	}
 	
-	fn lv_bytes (w: &mut W, b: &[u8]) -> Result <()> {
+	pub fn lv_bytes (w: &mut W, b: &[u8]) -> Result <()> {
 		if b.len () > 2_000_000_000 {
-			Err (TlvError::BufferTooBig)?;
+			return Err (TlvError::BufferTooBig);
 		}
 		
 		let l = u32::try_from (b.len ())?;
@@ -38,11 +40,20 @@ impl <W: std::io::Write> Writer <W> {
 	}
 }
 
-struct Reader <R> {
+pub struct Reader <R> {
 	_x: std::marker::PhantomData <R>,
 }
 
 impl <R: std::io::Read> Reader <R> {
+	pub fn expect (r: &mut R, expected: &[u8]) -> Result <()> {
+		let mut actual = vec! [0u8; expected.len ()];
+		r.read_exact (&mut actual)?;
+		if actual != expected {
+			return Err (TlvError::NotExpected);
+		}
+		Ok (())
+	}
+	
 	fn length (r: &mut R) -> Result <u32> {
 		let mut buf = [0; 4];
 		r.read_exact (&mut buf)?;
@@ -50,15 +61,22 @@ impl <R: std::io::Read> Reader <R> {
 		Ok (u32::from_le_bytes (buf))
 	}
 	
-	fn lv_bytes (r: &mut R, buf: &mut [u8]) -> Result <u32> {
+	pub fn lv_bytes (r: &mut R, buf: &mut [u8]) -> Result <u32> {
 		let l = Self::length (r)?;
 		if usize::try_from (l)? > buf.len () {
-			Err (TlvError::CallerBufferTooSmall)?;
+			return Err (TlvError::CallerBufferTooSmall);
 		}
 		
 		r.read_exact (&mut buf [0..usize::try_from (l)?])?;
 		
 		Ok (l)
+	}
+	
+	pub fn u8 (r: &mut R) -> std::io::Result <u8> {
+		let mut buf = [0];
+		r.read_exact (&mut buf)?;
+		
+		Ok (buf [0])
 	}
 }
 
