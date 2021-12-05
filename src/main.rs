@@ -63,6 +63,12 @@ fn client () -> Result <(), AppError> {
 	
 	socket.send_to ("hi there".as_bytes (), (params.multicast_addr, params.server_port)).unwrap ();
 	
+	let mut buf = vec! [0u8; 4096];
+	let (bytes_recved, remote_addr) = socket.recv_from (&mut buf).unwrap ();
+	buf.truncate (bytes_recved);
+	let _buf = buf;
+	dbg! (remote_addr);
+	
 	Ok (())
 }
 
@@ -74,8 +80,11 @@ fn server () -> Result <(), AppError> {
 	
 	let mut buf = vec! [0u8; 4096];
 	let (bytes_recved, remote_addr) = socket.recv_from (&mut buf).unwrap ();
+	buf.truncate (bytes_recved);
+	let _buf = buf;
+	dbg! (remote_addr);
 	
-	dbg! (bytes_recved, remote_addr);
+	socket.send_to ("hi there".as_bytes (), remote_addr).unwrap ();
 	
 	Ok (())
 }
