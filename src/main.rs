@@ -1,4 +1,5 @@
 use std::{
+	collections::HashMap,
 	env,
 	net::{
 		Ipv4Addr,
@@ -6,9 +7,13 @@ use std::{
 		SocketAddrV4,
 		UdpSocket,
 	},
+	time::{Duration, Instant},
 };
 
-use mac_address::get_mac_address;
+use mac_address::{
+	MacAddress,
+	get_mac_address,
+};
 use thiserror::Error;
 
 mod message;
@@ -65,8 +70,7 @@ fn main () -> Result <(), AppError> {
 	
 	match get_mac_address() {
 		Ok(Some(ma)) => {
-			println!("MAC addr = {}", ma);
-			println!("bytes = {:?}", ma.bytes());
+			println!("Our MAC addr = {}", ma);
 		}
 		Ok(None) => println!("No MAC address found."),
 		Err(e) => println!("{:?}", e),
@@ -84,17 +88,42 @@ fn main () -> Result <(), AppError> {
 
 fn client () -> Result <(), AppError> {
 	let params = CommonParams::default ();
-	let socket = UdpSocket::bind ("0.0.0.0:0").unwrap ();
+	let socket = UdpSocket::bind ("0.0.0.0:0")?;
 	
-	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
+	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ()))?;
+	socket.set_read_timeout (Some (Duration::from_millis (1_000)))?;
 	
 	let msg = Message::Request (None).to_vec ()?;
+	socket.send_to (&msg, (params.multicast_addr, params.server_port))?;
 	
-	socket.send_to (&msg, (params.multicast_addr, params.server_port)).unwrap ();
+	let start_time = Instant::now ();
 	
-	let (resp, remote_addr) = recv_msg_from (&socket)?;
+	let mut peers = HashMap::with_capacity (10);
 	
-	dbg! (remote_addr);
+	while Instant::now () < start_time + Duration::from_secs (2) {
+		let (resp, remote_addr) = match recv_msg_from (&socket) {
+			Err (_) => continue,
+			Ok (x) => x,
+		};
+		
+		let peer_mac_addr = match resp {
+			Message::Response (mac) => mac,
+			_ => continue,
+		};
+		
+		peers.insert (peer_mac_addr, remote_addr);
+	}
+	
+	let mut peers: Vec <_> = peers.into_iter ().collect ();
+	peers.sort ();
+	
+	println! ("Found {} peers:", peers.len ());
+	for (mac, ip) in &peers {
+		match mac {
+			Some (mac) => println! ("{} = {}", MacAddress::new (*mac), ip),
+			None => println! ("<Unknown> = {}", ip),
+		}
+	}
 	
 	Ok (())
 }
@@ -110,21 +139,20 @@ fn server () -> Result <(), AppError> {
 	
 	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
 	
-	let (req, remote_addr) = recv_msg_from (&socket)?;
-	dbg! (remote_addr);
-	
-	let resp = match req {
-		Message::Request (None) => {
-			Some (Message::Response (our_mac))
-		},
-		_ => None,
-	};
-	
-	if let Some (resp) = resp {
-		socket.send_to (&resp.to_vec ()?, remote_addr).unwrap ();
+	loop {
+		let (req, remote_addr) = recv_msg_from (&socket)?;
+		
+		let resp = match req {
+			Message::Request (None) => {
+				Some (Message::Response (our_mac))
+			},
+			_ => continue,
+		};
+		
+		if let Some (resp) = resp {
+			socket.send_to (&resp.to_vec ()?, remote_addr).unwrap ();
+		}
 	}
-	
-	Ok (())
 }
 
 fn recv_msg_from (socket: &UdpSocket) -> Result <(Message, SocketAddr), AppError> 

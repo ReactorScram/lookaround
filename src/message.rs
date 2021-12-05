@@ -9,6 +9,7 @@ use thiserror::Error;
 const MAGIC_NUMBER: [u8; 4] = [0x9a, 0x4a, 0x43, 0x81];
 pub const PACKET_SIZE: usize = 1024;
 
+#[derive (Debug)]
 pub enum Message {
 	Request (Option <[u8; 6]>),
 	Response (Option <[u8; 6]>),
