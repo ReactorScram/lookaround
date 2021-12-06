@@ -185,7 +185,6 @@ fn recv_msg_from (socket: &UdpSocket) -> Result <(Message, SocketAddr), AppError
 {
 	let mut buf = vec! [0u8; PACKET_SIZE];
 	let (bytes_recved, remote_addr) = socket.recv_from (&mut buf)?;
-	dbg! (remote_addr);
 	buf.truncate (bytes_recved);
 	let msg = Message::from_slice (&buf)?;
 	
