@@ -1,7 +1,15 @@
 [package]
-name = "lookaround"
-version = "0.1.0"
+authors = ["Trish"]
+categories = ["command-line-utilities"]
+description = "Report and find your MAC and IP addresses within LANs"
 edition = "2021"
+homepage = "https://six-five-six-four.com/git/reactor/lookaround"
+keywords = ["address", "discovery", "ip", "network"]
+license = "AGPL-3.0"
+name = "lookaround"
+readme = "README.md"
+repository = "https://six-five-six-four.com/git/reactor/lookaround"
+version = "0.1.0"
 
 [dependencies]
 mac_address = "1.1.2"
