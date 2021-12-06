@@ -10,14 +10,17 @@ within a LAN. There's no central server, so it's not a look-up, it's a look-arou
 $ lookaround client
 
 Found 3 peers:
-11:11:11:11:11:11 = 192.168.1.101:9040 # Your laptop
-22:22:22:22:22:22 = 192.168.1.102:9040 # Your desktop
-33:33:33:33:33:33 = 192.168.1.103:9040 # Your home server
-# Claimed MAC       IP address
+11:11:11:11:11:11 = 192.168.1.101:9040
+22:22:22:22:22:22 = 192.168.1.102:9040
+33:33:33:33:33:33 = 192.168.1.103:9040
 ```
 
 The LookAround client uses IP multicast to find LookAround servers within the
 same multicast domain.
+
+MAC addresses change slower than IP addresses, so if you know that
+`11:11:11:11:11:11` is your laptop, and your laptop is running LookAround,
+LookAround will find the IP for you.
 
 ## Installation
 
