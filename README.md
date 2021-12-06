@@ -1,5 +1,5 @@
 # LookAround
-"I want SSH into my laptop, but I keep forgetting its IP!!"
+"I want to SSH into my laptop, but I keep forgetting its IP!!"
 
 _Has this ever happened to you?_
 
@@ -38,7 +38,7 @@ put this systemd unit in `~/.config/systemd/user/lookaround.service`:
 Description=LookAround
 
 [Service]
-ExecStart=lookaround server
+ExecStart=/home/user/.cargo/bin/lookaround server
 
 [Install]
 WantedBy=default.target
