@@ -132,7 +132,7 @@ fn client () -> Result <(), AppError> {
 	println! ("Found {} peers:", peers.len ());
 	for (mac, ip) in &peers {
 		match mac {
-			Some (mac) => println! ("{} = {}", MacAddress::new (*mac), ip),
+			Some (mac) => println! ("{} = {}", MacAddress::new (*mac), ip.ip ()),
 			None => println! ("<Unknown> = {}", ip),
 		}
 	}
