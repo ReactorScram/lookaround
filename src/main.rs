@@ -123,14 +123,14 @@ fn client () -> Result <(), AppError> {
 			_ => continue,
 		};
 		
-		peers.insert (peer_mac_addr, remote_addr);
+		peers.insert (remote_addr, peer_mac_addr);
 	}
 	
 	let mut peers: Vec <_> = peers.into_iter ().collect ();
 	peers.sort ();
 	
 	println! ("Found {} peers:", peers.len ());
-	for (mac, ip) in &peers {
+	for (ip, mac) in &peers {
 		match mac {
 			Some (mac) => println! ("{} = {}", MacAddress::new (*mac), ip.ip ()),
 			None => println! ("<Unknown> = {}", ip),
