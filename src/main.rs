@@ -76,23 +76,26 @@ fn main () -> Result <(), AppError> {
 		Err(e) => println!("{:?}", e),
 	}
 	
-	match args.next ().as_ref ().map (|s| &s[..]) {
+	let subcommand: Option <String> = args.next ();
+	
+	let mut common_params = CommonParams::default ();
+	
+	match subcommand.as_ref ().map (|x| &x[..]) {
 		None => return Err (CliArgError::MissingSubcommand.into ()),
-		Some ("client") => client ()?,
-		Some ("server") => server ()?,
+		Some ("client") => client (&common_params)?,
+		Some ("server") => server (&common_params)?,
 		Some (x) => return Err (CliArgError::UnknownSubcommand (x.to_string ()).into ()),
 	}
 	
 	Ok (())
 }
 
-fn client () -> Result <(), AppError> {
+fn client (common_params: &CommonParams) -> Result <(), AppError> {
 	use rand::RngCore;
 	
-	let params = CommonParams::default ();
 	let socket = UdpSocket::bind ("0.0.0.0:0")?;
 	
-	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ()))?;
+	socket.join_multicast_v4 (&common_params.multicast_addr, &([0u8, 0, 0, 0].into ()))?;
 	socket.set_read_timeout (Some (Duration::from_millis (1_000)))?;
 	
 	let mut idem_id = [0u8; 8];
@@ -104,7 +107,7 @@ fn client () -> Result <(), AppError> {
 	}.to_vec ()?;
 	
 	for _ in 0..10 {
-		socket.send_to (&msg, (params.multicast_addr, params.server_port))?;
+		socket.send_to (&msg, (common_params.multicast_addr, common_params.server_port))?;
 		std::thread::sleep (Duration::from_millis (100));
 	}
 	
@@ -140,16 +143,16 @@ fn client () -> Result <(), AppError> {
 	Ok (())
 }
 
-fn server () -> Result <(), AppError> {
+fn server (common_params: &CommonParams) -> Result <(), AppError> 
+{
 	let our_mac = get_mac_address ()?.map (|x| x.bytes ());
 	if our_mac.is_none () {
 		println! ("Warning: Can't find our own MAC address. We won't be able to respond to MAC-specific lookaround requests");
 	}
 	
-	let params = CommonParams::default ();
-	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, params.server_port)).unwrap ();
+	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, common_params.server_port)).unwrap ();
 	
-	socket.join_multicast_v4 (&params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
+	socket.join_multicast_v4 (&common_params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
 	
 	let mut recent_idem_ids = Vec::with_capacity (32);
 	
