@@ -21,3 +21,10 @@ and get their IPs, so I might have to find another dependency
 for that. I think on Linux I can get it from `/sys/class/net` but
 I can't remember the trick for that. I think last time I did this
 (for that work project) I just punted to Qt.
+
+# 01FP9A272Q94Y08MAKX7BFT11M
+
+Need CLI args
+
+I don't know if this multicast addr and this port are unused.
+Having CLI args lets us work around other apps.
