@@ -10,9 +10,9 @@ within a LAN. There's no central server, so it's not a look-up, it's a look-arou
 $ lookaround client
 
 Found 3 peers:
-11:11:11:11:11:11 = 192.168.1.101:9040
-22:22:22:22:22:22 = 192.168.1.102:9040
-33:33:33:33:33:33 = 192.168.1.103:9040
+11:11:11:11:11:11 = 192.168.1.101
+22:22:22:22:22:22 = 192.168.1.102
+33:33:33:33:33:33 = 192.168.1.103
 ```
 
 The LookAround client uses IP multicast to find LookAround servers within the
