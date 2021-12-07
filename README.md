@@ -77,3 +77,5 @@ Use the [kazupon Git commit message convention](https://github.com/kazupon/git-c
 
 ## This Git repo
 This repo's upstream is https://six-five-six-four.com/git/reactor/lookaround.
+
+I don't use GitHub issues, so issues are in issues.md in the repo.
