@@ -39,6 +39,8 @@ enum AppError {
 	Message (#[from] message::MessageError),
 	#[error (transparent)]
 	Tlv (#[from] tlv::TlvError),
+	#[error (transparent)]
+	Utf8 (#[from] std::str::Utf8Error),
 }
 
 #[derive (Debug, Error)]
@@ -88,11 +90,67 @@ fn main () -> Result <(), AppError> {
 	match subcommand.as_ref ().map (|x| &x[..]) {
 		None => return Err (CliArgError::MissingSubcommand.into ()),
 		Some ("client") => client (args)?,
+		Some ("my-ips") => my_ips ()?,
 		Some ("server") => server (args)?,
 		Some (x) => return Err (CliArgError::UnknownSubcommand (x.to_string ()).into ()),
 	}
 	
 	Ok (())
+}
+
+#[cfg(target_os = "linux")]
+fn my_ips () -> Result <(), AppError> {
+	println! ("my-ips subcommand not implemented for linux yet");
+	Ok (())
+}
+
+#[cfg(target_os = "macos")]
+fn my_ips () -> Result <(), AppError> {
+	println! ("my-ips subcommand not implemented for macos");
+	Ok (())
+}
+
+#[cfg(target_os = "windows")]
+fn my_ips () -> Result <(), AppError> {
+	use std::process::Command;
+	
+	let output = Command::new ("ipconfig")
+	.output ()?;
+	let output = output.stdout.as_slice ();
+	let output = std::str::from_utf8 (output)?;
+	
+	for addr in parse_ip_config_output (output) {
+		println! ("{:?}", addr);
+	}
+	
+	Ok (())
+}
+
+fn parse_ip_config_output (output: &str) -> Vec <Ipv4Addr> {
+	let mut addrs = vec! [];
+	
+	for line in output.lines () {
+		let line = line.trim_start ();
+		
+		// Maybe only works on English locales?
+		if ! line.starts_with ("IPv4 Address") {
+			continue;
+		}
+		let colon_pos = match line.find (":") {
+			None => continue,
+			Some (x) => x,
+		};
+		let line = &line [colon_pos + 2..];
+		
+		let addr = match Ipv4Addr::from_str (line) {
+			Err (_) => continue,
+			Ok (x) => x,
+		};
+		
+		addrs.push (addr);
+	}
+	
+	addrs
 }
 
 struct ServerResponse {
