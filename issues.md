@@ -25,3 +25,8 @@ I can't remember the trick for that. I think last time I did this
 # 01FPDWYH3ZY52DFF6PNRSA63GB
 
 Sending an invalid packet directly to the server's UDP port crashes the server.
+
+# 01FPDY51GHC7NRFV7Z14Q1KV7N
+
+Remove all unwraps. Since I used abort-on-panic to make the binary smaller,
+it's not giving any error message for panics
