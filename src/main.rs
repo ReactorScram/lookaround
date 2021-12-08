@@ -40,10 +40,14 @@ enum AppError {
 
 #[derive (Debug, Error)]
 enum CliArgError {
+	#[error ("Missing value for argument `{0}`")]
+	MissingArgumentValue (String),
 	#[error ("First argument should be a subcommand")]
 	MissingSubcommand,
 	#[error ("Unknown subcommand `{0}`")]
 	UnknownSubcommand (String),
+	#[error ("Unrecognized argument `{0}`")]
+	UnrecognizedArgument (String),
 }
 
 struct CommonParams {
@@ -88,6 +92,11 @@ fn main () -> Result <(), AppError> {
 	Ok (())
 }
 
+struct ServerResponse {
+	mac: Option <[u8; 6]>,
+	nickname: Option <String>,
+}
+
 fn client () -> Result <(), AppError> {
 	use rand::RngCore;
 	
@@ -100,7 +109,7 @@ fn client () -> Result <(), AppError> {
 	let mut idem_id = [0u8; 8];
 	rand::thread_rng ().fill_bytes (&mut idem_id);
 	
-	let msg = Message::Request {
+	let msg = Message::Request1 {
 		idem_id,
 		mac: None,
 	}.to_vec ()?;
@@ -115,37 +124,70 @@ fn client () -> Result <(), AppError> {
 	let mut peers = HashMap::with_capacity (10);
 	
 	while Instant::now () < start_time + Duration::from_secs (2) {
-		let (resp, remote_addr) = match recv_msg_from (&socket) {
+		let (msgs, remote_addr) = match recv_msg_from (&socket) {
 			Err (_) => continue,
 			Ok (x) => x,
 		};
 		
-		let peer_mac_addr = match resp {
-			Message::Response (mac) => mac,
-			_ => continue,
+		let mut resp = ServerResponse {
+			mac: None,
+			nickname: None,
 		};
 		
-		peers.insert (remote_addr, peer_mac_addr);
+		for msg in msgs.into_iter () {
+			match msg {
+				Message::Response1 (x) => resp.mac = x,
+				Message::Response2 (x) => resp.nickname = Some (x.nickname),
+				_ => (),
+			}
+		}
+		
+		peers.insert (remote_addr, resp);
 	}
 	
 	let mut peers: Vec <_> = peers.into_iter ().collect ();
-	peers.sort ();
+	peers.sort_by_key (|(k, v)| v.mac);
 	
 	println! ("Found {} peers:", peers.len ());
-	for (ip, mac) in &peers {
-		match mac {
-			Some (mac) => println! ("{} = {}", MacAddress::new (*mac), ip.ip ()),
-			None => println! ("<Unknown> = {}", ip),
-		}
+	for (ip, resp) in peers.into_iter () {
+		let mac = match resp.mac {
+			None => {
+				println! ("<Unknown> = {}", ip);
+				continue;
+			},
+			Some (x) => x,
+		};
+		
+		let nickname = match resp.nickname {
+			None => {
+				println! ("{} = {}", MacAddress::new (mac), ip.ip ());
+				continue;
+			},
+			Some (x) => x,
+		};
+		
+		println! ("{} = {} `{}`", MacAddress::new (mac), ip.ip (), nickname);
 	}
 	
 	Ok (())
 }
 
-fn server <I: Iterator <Item=String>> (args: I) -> Result <(), AppError> 
+fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError> 
 {
 	let mut common_params = CommonParams::default ();
 	let mut nickname = String::new ();
+	
+	while let Some (arg) = args.next () {
+		match arg.as_str () {
+			"--nickname" => {
+				nickname = match args.next () {
+					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
+					Some (x) => x
+				};
+			},
+			_ => return Err (CliArgError::UnrecognizedArgument (arg).into ()),
+		}
+	}
 	
 	let our_mac = get_mac_address ()?.map (|x| x.bytes ());
 	if our_mac.is_none () {
@@ -160,10 +202,18 @@ fn server <I: Iterator <Item=String>> (args: I) -> Result <(), AppError>
 	
 	loop {
 		println! ("Waiting for messages...");
-		let (req, remote_addr) = recv_msg_from (&socket)?;
+		let (req_msgs, remote_addr) = recv_msg_from (&socket)?;
+		
+		let req = match req_msgs.into_iter ().next () {
+			Some (x) => x,
+			_ => {
+				println! ("Don't know how to handle this message, ignoring");
+				continue;
+			},
+		};
 		
 		let resp = match req {
-			Message::Request {
+			Message::Request1 {
 				mac: None,
 				idem_id,
 			} => {
@@ -174,24 +224,30 @@ fn server <I: Iterator <Item=String>> (args: I) -> Result <(), AppError>
 				else {
 					recent_idem_ids.insert (0, idem_id);
 					recent_idem_ids.truncate (30);
-					Some (Message::Response (our_mac))
+					Some (vec! [
+						Message::Response1 (our_mac),
+						Message::Response2 (message::Response2 {
+							idem_id,
+							nickname: nickname.clone (),
+						}),
+					])
 				}
 			},
 			_ => continue,
 		};
 		
 		if let Some (resp) = resp {
-			socket.send_to (&resp.to_vec ()?, remote_addr).unwrap ();
+			socket.send_to (&Message::many_to_vec (&resp)?, remote_addr).unwrap ();
 		}
 	}
 }
 
-fn recv_msg_from (socket: &UdpSocket) -> Result <(Message, SocketAddr), AppError> 
+fn recv_msg_from (socket: &UdpSocket) -> Result <(Vec <Message>, SocketAddr), AppError> 
 {
 	let mut buf = vec! [0u8; PACKET_SIZE];
 	let (bytes_recved, remote_addr) = socket.recv_from (&mut buf)?;
 	buf.truncate (bytes_recved);
-	let msg = Message::from_slice (&buf)?;
+	let msgs = Message::from_slice2 (&buf)?;
 	
-	Ok ((msg, remote_addr))
+	Ok ((msgs, remote_addr))
 }
