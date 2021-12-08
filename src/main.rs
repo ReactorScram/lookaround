@@ -17,6 +17,7 @@ use mac_address::{
 };
 use thiserror::Error;
 
+mod ip;
 mod message;
 mod tlv;
 
@@ -26,11 +27,13 @@ use message::{
 };
 
 #[derive (Debug, Error)]
-enum AppError {
+pub enum AppError {
 	#[error (transparent)]
 	AddrParse (#[from] std::net::AddrParseError),
 	#[error (transparent)]
 	CliArgs (#[from] CliArgError),
+	#[error (transparent)]
+	FromUtf8 (#[from] std::string::FromUtf8Error),
 	#[error (transparent)]
 	Io (#[from] std::io::Error),
 	#[error (transparent)]
@@ -44,7 +47,7 @@ enum AppError {
 }
 
 #[derive (Debug, Error)]
-enum CliArgError {
+pub enum CliArgError {
 	#[error ("Missing value for argument `{0}`")]
 	MissingArgumentValue (String),
 	#[error ("First argument should be a subcommand")]
@@ -100,7 +103,15 @@ fn main () -> Result <(), AppError> {
 
 #[cfg(target_os = "linux")]
 fn my_ips () -> Result <(), AppError> {
-	println! ("my-ips subcommand not implemented for linux yet");
+	let output = ip::get_ip_addr_output ()?;
+	
+	for addr in ip::parse_ip_addr_output (&output)
+	.iter ()
+	.filter (|a| ! a.is_loopback ())
+	{
+		println! ("{:?}", addr);
+	}
+	
 	Ok (())
 }
 
@@ -112,45 +123,13 @@ fn my_ips () -> Result <(), AppError> {
 
 #[cfg(target_os = "windows")]
 fn my_ips () -> Result <(), AppError> {
-	use std::process::Command;
+	let output = ip::get_ip_config_output ()?;
 	
-	let output = Command::new ("ipconfig")
-	.output ()?;
-	let output = output.stdout.as_slice ();
-	let output = std::str::from_utf8 (output)?;
-	
-	for addr in parse_ip_config_output (output) {
+	for addr in ip::parse_ip_config_output (&output) {
 		println! ("{:?}", addr);
 	}
 	
 	Ok (())
-}
-
-fn parse_ip_config_output (output: &str) -> Vec <Ipv4Addr> {
-	let mut addrs = vec! [];
-	
-	for line in output.lines () {
-		let line = line.trim_start ();
-		
-		// Maybe only works on English locales?
-		if ! line.starts_with ("IPv4 Address") {
-			continue;
-		}
-		let colon_pos = match line.find (":") {
-			None => continue,
-			Some (x) => x,
-		};
-		let line = &line [colon_pos + 2..];
-		
-		let addr = match Ipv4Addr::from_str (line) {
-			Err (_) => continue,
-			Ok (x) => x,
-		};
-		
-		addrs.push (addr);
-	}
-	
-	addrs
 }
 
 struct ServerResponse {
