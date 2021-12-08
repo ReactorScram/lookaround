@@ -9,7 +9,7 @@ license = "AGPL-3.0"
 name = "lookaround"
 readme = "README.md"
 repository = "https://six-five-six-four.com/git/reactor/lookaround"
-version = "0.1.2"
+version = "0.1.3"
 
 [dependencies]
 mac_address = "1.1.2"
