@@ -10,9 +10,9 @@ within a LAN. There's no central server, so it's not a look-up, it's a look-arou
 $ lookaround client
 
 Found 3 peers:
-11:11:11:11:11:11 = 192.168.1.101
-22:22:22:22:22:22 = 192.168.1.102
-33:33:33:33:33:33 = 192.168.1.103
+11:11:11:11:11:11 = 192.168.1.101 `laptop`
+22:22:22:22:22:22 = 192.168.1.102 `desktop`
+33:33:33:33:33:33 = 192.168.1.103 `old-laptop`
 ```
 
 The LookAround client uses IP multicast to find LookAround servers within the
@@ -38,7 +38,7 @@ put this systemd unit in `~/.config/systemd/user/lookaround.service`:
 Description=LookAround
 
 [Service]
-ExecStart=/home/user/.cargo/bin/lookaround server
+ExecStart=/home/user/.cargo/bin/lookaround server --nickname my-desktop
 
 [Install]
 WantedBy=default.target
@@ -77,5 +77,6 @@ Use the [kazupon Git commit message convention](https://github.com/kazupon/git-c
 
 ## This Git repo
 This repo's upstream is https://six-five-six-four.com/git/reactor/lookaround.
+It's mirrored on my GitHub, https://github.com/ReactorScram/lookaround
 
 I don't use GitHub issues, so issues are in issues.md in the repo.

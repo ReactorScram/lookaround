@@ -45,7 +45,7 @@ checksum = "f98a04dce437184842841303488f70d0188c5f51437d2a834dc097eafa909a01"
 
 [[package]]
 name = "lookaround"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "mac_address",
  "rand",
