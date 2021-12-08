@@ -22,9 +22,6 @@ for that. I think on Linux I can get it from `/sys/class/net` but
 I can't remember the trick for that. I think last time I did this
 (for that work project) I just punted to Qt.
 
-# 01FP9A272Q94Y08MAKX7BFT11M
+# 01FPDWYH3ZY52DFF6PNRSA63GB
 
-Need CLI args
-
-I don't know if this multicast addr and this port are unused.
-Having CLI args lets us work around other apps.
+Sending an invalid packet directly to the server's UDP port crashes the server.

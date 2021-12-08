@@ -7,6 +7,7 @@ use std::{
 		SocketAddrV4,
 		UdpSocket,
 	},
+	str::FromStr,
 	time::{Duration, Instant},
 };
 
@@ -26,6 +27,8 @@ use message::{
 
 #[derive (Debug, Error)]
 enum AppError {
+	#[error (transparent)]
+	AddrParse (#[from] std::net::AddrParseError),
 	#[error (transparent)]
 	CliArgs (#[from] CliArgError),
 	#[error (transparent)]
@@ -84,7 +87,7 @@ fn main () -> Result <(), AppError> {
 	
 	match subcommand.as_ref ().map (|x| &x[..]) {
 		None => return Err (CliArgError::MissingSubcommand.into ()),
-		Some ("client") => client ()?,
+		Some ("client") => client (args)?,
 		Some ("server") => server (args)?,
 		Some (x) => return Err (CliArgError::UnknownSubcommand (x.to_string ()).into ()),
 	}
@@ -97,13 +100,27 @@ struct ServerResponse {
 	nickname: Option <String>,
 }
 
-fn client () -> Result <(), AppError> {
+fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
 	use rand::RngCore;
 	
 	let mut common_params = CommonParams::default ();
-	let socket = UdpSocket::bind ("0.0.0.0:0")?;
+	let mut bind_addr = "0.0.0.0".to_string ();
 	
-	socket.join_multicast_v4 (&common_params.multicast_addr, &([0u8, 0, 0, 0].into ()))?;
+	while let Some (arg) = args.next () {
+		match arg.as_str () {
+			"--bind-addr" => {
+				bind_addr = match args.next () {
+					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
+					Some (x) => x
+				};
+			},
+			_ => return Err (CliArgError::UnrecognizedArgument (arg).into ()),
+		}
+	}
+	
+	let socket = UdpSocket::bind (&format! ("{}:0", bind_addr))?;
+	
+	socket.join_multicast_v4 (&common_params.multicast_addr, &Ipv4Addr::from_str (&bind_addr)?)?;
 	socket.set_read_timeout (Some (Duration::from_millis (1_000)))?;
 	
 	let mut idem_id = [0u8; 8];
@@ -175,10 +192,17 @@ fn client () -> Result <(), AppError> {
 fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError> 
 {
 	let mut common_params = CommonParams::default ();
+	let mut bind_addr = "0.0.0.0".to_string ();
 	let mut nickname = String::new ();
 	
 	while let Some (arg) = args.next () {
 		match arg.as_str () {
+			"--bind-addr" => {
+				bind_addr = match args.next () {
+					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
+					Some (x) => x
+				};
+			},
 			"--nickname" => {
 				nickname = match args.next () {
 					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
@@ -194,7 +218,7 @@ fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError>
 		println! ("Warning: Can't find our own MAC address. We won't be able to respond to MAC-specific lookaround requests");
 	}
 	
-	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, common_params.server_port)).unwrap ();
+	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::from_str (&bind_addr)?, common_params.server_port)).unwrap ();
 	
 	socket.join_multicast_v4 (&common_params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
 	
