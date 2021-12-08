@@ -76,6 +76,14 @@ impl Default for CommonParams {
 }
 
 fn main () -> Result <(), AppError> {
+	let rt = tokio::runtime::Builder::new_current_thread ().build ()?;
+	
+	rt.block_on (async_main ())?;
+	
+	Ok (())
+}
+
+async fn async_main () -> Result <(), AppError> {
 	let mut args = env::args ();
 	
 	let _exe_name = args.next ();
