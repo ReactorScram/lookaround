@@ -78,21 +78,20 @@ fn main () -> Result <(), AppError> {
 	
 	let subcommand: Option <String> = args.next ();
 	
-	let mut common_params = CommonParams::default ();
-	
 	match subcommand.as_ref ().map (|x| &x[..]) {
 		None => return Err (CliArgError::MissingSubcommand.into ()),
-		Some ("client") => client (&common_params)?,
-		Some ("server") => server (&common_params)?,
+		Some ("client") => client ()?,
+		Some ("server") => server (args)?,
 		Some (x) => return Err (CliArgError::UnknownSubcommand (x.to_string ()).into ()),
 	}
 	
 	Ok (())
 }
 
-fn client (common_params: &CommonParams) -> Result <(), AppError> {
+fn client () -> Result <(), AppError> {
 	use rand::RngCore;
 	
+	let mut common_params = CommonParams::default ();
 	let socket = UdpSocket::bind ("0.0.0.0:0")?;
 	
 	socket.join_multicast_v4 (&common_params.multicast_addr, &([0u8, 0, 0, 0].into ()))?;
@@ -143,8 +142,11 @@ fn client (common_params: &CommonParams) -> Result <(), AppError> {
 	Ok (())
 }
 
-fn server (common_params: &CommonParams) -> Result <(), AppError> 
+fn server <I: Iterator <Item=String>> (args: I) -> Result <(), AppError> 
 {
+	let mut common_params = CommonParams::default ();
+	let mut nickname = String::new ();
+	
 	let our_mac = get_mac_address ()?.map (|x| x.bytes ());
 	if our_mac.is_none () {
 		println! ("Warning: Can't find our own MAC address. We won't be able to respond to MAC-specific lookaround requests");

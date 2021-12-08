@@ -113,8 +113,27 @@ impl Message {
 
 #[cfg (test)]
 mod test {
+	use super::*;
+	
 	#[test]
 	fn test_1 () {
-		
+		for (input, expected) in [
+			(
+				Message::Response (Some ([0x11, 0x22, 0x33, 0x44, 0x55, 0x66])), 
+				vec! [
+					// Magic number for LookAround packets
+					154, 74, 67, 129,
+					// Response tag
+					2, 
+					// MAC is Some
+					1,
+					// MAC
+					17, 34, 51, 68, 85, 102,
+				],
+			),
+		].into_iter () {
+			let actual = input.to_vec ().unwrap ();
+			assert_eq! (actual, expected, "{:?}", input);
+		}
 	}
 }
