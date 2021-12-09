@@ -4,13 +4,19 @@ use std::{
 	str::FromStr,
 };
 
-use crate::AppError;
+#[derive (Debug, thiserror::Error)]
+pub enum IpError {
+	#[error (transparent)]
+	Io (#[from] std::io::Error),
+	#[error (transparent)]
+	FromUtf8 (#[from] std::string::FromUtf8Error),
+}
 
 #[cfg(target_os = "linux")]
 pub mod linux {
 	use super::*;
 	
-	pub fn get_ip_addr_output () -> Result <String, AppError> {
+	pub fn get_ip_addr_output () -> Result <String, IpError> {
 		let output = Command::new ("ip")
 		.arg ("addr")
 		.output ()?;
@@ -35,7 +41,7 @@ pub mod linux {
 pub mod windows {
 	use super::*;
 	
-	pub fn get_ip_config_output () -> Result <String, AppError> {
+	pub fn get_ip_config_output () -> Result <String, IpError> {
 		let output = Command::new ("ipconfig")
 		.output ()?;
 		let output = output.stdout.as_slice ();
