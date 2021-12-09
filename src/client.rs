@@ -30,7 +30,9 @@ pub async fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), Ap
 	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, 0)).await?;
 	
 	for bind_addr in bind_addrs {
-		socket.join_multicast_v4 (common_params.multicast_addr, bind_addr)?;
+		if let Err (e) = socket.join_multicast_v4 (common_params.multicast_addr, bind_addr) {
+			println! ("Error joining multicast group with iface {}: {:?}", bind_addr, e);
+		}
 	}
 	
 	let mut idem_id = [0u8; 8];

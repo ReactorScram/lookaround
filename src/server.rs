@@ -15,7 +15,9 @@ pub async fn server <I: Iterator <Item=String>> (args: I) -> Result <(), AppErro
 	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, params.common.server_port)).await?;
 	
 	for bind_addr in &params.bind_addrs {
-		socket.join_multicast_v4 (params.common.multicast_addr, *bind_addr)?;
+		if let Err (e) = socket.join_multicast_v4 (params.common.multicast_addr, *bind_addr) {
+			println! ("Error joining multicast group with iface {}: {:?}", bind_addr, e);
+		}
 	}
 	
 	serve_interface (params, socket).await?;
