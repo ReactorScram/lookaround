@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+pub const LOOKAROUND_VERSION: &'static str = env! ("CARGO_PKG_VERSION");
+
 #[derive (Debug, thiserror::Error)]
 pub enum AppError {
 	#[error (transparent)]

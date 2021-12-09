@@ -34,6 +34,7 @@ pub use tokio::{
 pub use crate::{
 	app_common::{
 		self,
+		LOOKAROUND_VERSION,
 		AppError,
 		CliArgError,
 		recv_msg_from,

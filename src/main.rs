@@ -28,6 +28,7 @@ async fn async_main () -> Result <(), AppError> {
 	
 	match subcommand.as_ref ().map (|x| &x[..]) {
 		None => return Err (CliArgError::MissingSubcommand.into ()),
+		Some ("--version") => println! ("lookaround v{}", LOOKAROUND_VERSION),
 		Some ("client") => client::client (args).await?,
 		Some ("find-nick") => client::find_nick (args).await?,
 		Some ("my-ips") => my_ips ()?,
