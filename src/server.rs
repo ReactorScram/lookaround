@@ -53,7 +53,7 @@ fn configure <I: Iterator <Item=String>> (mut args: I) -> Result <Params, AppErr
 	}
 	
 	if bind_addrs.is_empty () {
-		println! ("No bind addresses found, auto-detecting all local IPs");
+		println! ("No bind addresses given, auto-detecting all local IPs");
 		bind_addrs = get_ips ()?;
 	}
 	

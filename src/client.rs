@@ -9,23 +9,29 @@ pub async fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), Ap
 	use rand::RngCore;
 	
 	let common_params = app_common::Params::default ();
-	let mut bind_addr = "0.0.0.0".to_string ();
+	let mut bind_addrs = vec! [];
 	
 	while let Some (arg) = args.next () {
 		match arg.as_str () {
 			"--bind-addr" => {
-				bind_addr = match args.next () {
+				bind_addrs.push (match args.next () {
 					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
-					Some (x) => x
-				};
+					Some (x) => Ipv4Addr::from_str (&x)?
+				});
 			},
 			_ => return Err (CliArgError::UnrecognizedArgument (arg).into ()),
 		}
 	}
 	
-	let socket = UdpSocket::bind (&format! ("{}:0", bind_addr)).await?;
+	if bind_addrs.is_empty () {
+		bind_addrs = get_ips ()?;
+	}
 	
-	socket.join_multicast_v4 (common_params.multicast_addr, Ipv4Addr::from_str (&bind_addr)?)?;
+	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, 0)).await?;
+	
+	for bind_addr in bind_addrs {
+		socket.join_multicast_v4 (common_params.multicast_addr, bind_addr)?;
+	}
 	
 	let mut idem_id = [0u8; 8];
 	rand::thread_rng ().fill_bytes (&mut idem_id);
