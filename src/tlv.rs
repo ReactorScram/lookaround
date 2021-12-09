@@ -61,7 +61,7 @@ impl <R: std::io::Read> Reader <R> {
 		Ok (u32::from_le_bytes (buf))
 	}
 	
-	pub fn lv_bytes (r: &mut R, buf: &mut [u8]) -> Result <u32> {
+	fn lv_bytes (r: &mut R, buf: &mut [u8]) -> Result <u32> {
 		let l = Self::length (r)?;
 		if usize::try_from (l)? > buf.len () {
 			return Err (TlvError::CallerBufferTooSmall);

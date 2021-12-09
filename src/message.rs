@@ -19,10 +19,10 @@ pub enum Message {
 	// 1
 	Request1 {
 		idem_id: [u8; 8],
-		mac: Option <[u8; 6]>
+		mac: Option <Mac>
 	},
 	// 2
-	Response1 (Option <[u8; 6]>),
+	Response1 (Option <Mac>),
 	// 3
 	Response2 (Response2),
 }
@@ -66,7 +66,7 @@ impl Write for DummyWriter {
 }
 
 impl Message {
-	pub fn write <T> (&self, w: &mut Cursor <T>) -> Result <(), std::io::Error> 
+	pub fn write <T> (&self, w: &mut Cursor <T>) -> Result <(), MessageError> 
 	where Cursor <T>: Write
 	{
 		match self {
@@ -102,13 +102,11 @@ impl Message {
 	}
 	
 	fn write_response_2 <W: Write> (w: &mut W, params: &Response2) 
-	-> Result <(), std::io::Error>
+	-> Result <(), MessageError>
 	{
 		w.write_all (&params.idem_id)?;
 		let nickname = params.nickname.as_bytes ();
-		let nickname_len = u32::try_from (nickname.len ()).unwrap ();
-		w.write_all (&nickname_len.to_le_bytes ())?;
-		w.write_all (&nickname)?;
+		tlv::Writer::<_>::lv_bytes (w, nickname)?;
 		Ok (())
 	}
 	
@@ -124,14 +122,14 @@ impl Message {
 		Ok (())
 	}
 	
-	pub fn to_vec (&self) -> Result <Vec <u8>, tlv::TlvError> {
+	pub fn to_vec (&self) -> Result <Vec <u8>, MessageError> {
 		let mut cursor = Cursor::new (Vec::with_capacity (PACKET_SIZE));
 		cursor.write_all (&MAGIC_NUMBER)?;
 		self.write (&mut cursor)?;
 		Ok (cursor.into_inner ())
 	}
 	
-	pub fn many_to_vec (msgs: &[Self]) -> Result <Vec <u8>, tlv::TlvError> {
+	pub fn many_to_vec (msgs: &[Self]) -> Result <Vec <u8>, MessageError> {
 		let mut cursor = Cursor::new (Vec::with_capacity (PACKET_SIZE));
 		cursor.write_all (&MAGIC_NUMBER)?;
 		for msg in msgs {
