@@ -4,6 +4,10 @@
 _Has this ever happened to you?_
 
 ```text
+$ ping $(lookaround find-nick laptop)
+PING 192.168.1.101 (192.168.1.101) 56(84) bytes of data.
+...
+
 $ lookaround client
 
 Found 3 peers:
