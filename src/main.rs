@@ -111,9 +111,9 @@ async fn async_main () -> Result <(), AppError> {
 
 #[cfg(target_os = "linux")]
 fn my_ips () -> Result <(), AppError> {
-	let output = ip::get_ip_addr_output ()?;
+	let output = ip::linux::get_ip_addr_output ()?;
 	
-	for addr in ip::parse_ip_addr_output (&output)
+	for addr in ip::linux::parse_ip_addr_output (&output)
 	.iter ()
 	.filter (|a| ! a.is_loopback ())
 	{
@@ -131,9 +131,9 @@ fn my_ips () -> Result <(), AppError> {
 
 #[cfg(target_os = "windows")]
 fn my_ips () -> Result <(), AppError> {
-	let output = ip::get_ip_config_output ()?;
+	let output = ip::windows::get_ip_config_output ()?;
 	
-	for addr in ip::parse_ip_config_output (&output) {
+	for addr in ip::windows::parse_ip_config_output (&output) {
 		println! ("{:?}", addr);
 	}
 	
