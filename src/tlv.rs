@@ -6,8 +6,14 @@ type Result <T> = std::result::Result <T, TlvError>;
 pub enum TlvError {
 	#[error ("Buffer too big")]
 	BufferTooBig,
-	#[error ("Caller-provided buffer too small")]
-	CallerBufferTooSmall,
+	
+	// Violets are purple,
+	// To live is to suffer,
+	// The data is too big,
+	// For the gosh-darn buffer.
+	
+	#[error ("Data too big")]
+	DataTooBig,
 	#[error (transparent)]
 	Io (#[from] std::io::Error),
 	#[error ("Actual bytes didn't match expected bytes")]
@@ -54,22 +60,24 @@ impl <R: std::io::Read> Reader <R> {
 		Ok (())
 	}
 	
-	fn length (r: &mut R) -> Result <u32> {
+	pub fn length (r: &mut R) -> Result <u32> {
 		let mut buf = [0; 4];
 		r.read_exact (&mut buf)?;
 		
 		Ok (u32::from_le_bytes (buf))
 	}
 	
-	fn lv_bytes (r: &mut R, buf: &mut [u8]) -> Result <u32> {
+	pub fn lv_bytes_to_vec (r: &mut R, limit: usize) -> Result <Vec <u8>> {
 		let l = Self::length (r)?;
-		if usize::try_from (l)? > buf.len () {
-			return Err (TlvError::CallerBufferTooSmall);
+		let l = usize::try_from (l)?;
+		if l > limit {
+			return Err (TlvError::DataTooBig);
 		}
 		
-		r.read_exact (&mut buf [0..usize::try_from (l)?])?;
+		let mut v = vec! [0u8; l];
+		r.read_exact (&mut v)?;
 		
-		Ok (l)
+		Ok (v)
 	}
 	
 	pub fn u8 (r: &mut R) -> std::io::Result <u8> {
@@ -102,11 +110,9 @@ mod test {
 		
 		let mut r = Cursor::new (v);
 		
-		let mut buf = vec! [0; 1024];
+		let buf = super::Reader::lv_bytes_to_vec (&mut r, 1024).unwrap ();
 		
-		let bytes_read = super::Reader::lv_bytes (&mut r, &mut buf).unwrap ();
-		
-		assert_eq! (usize::try_from (bytes_read).unwrap (), b.len ());
-		assert_eq! (b, &buf [0..usize::try_from (bytes_read).unwrap ()]);
+		assert_eq! (buf.len (), b.len ());
+		assert_eq! (b, &buf [0..usize::try_from (buf.len ()).unwrap ()]);
 	}
 }

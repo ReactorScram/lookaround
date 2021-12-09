@@ -148,7 +148,7 @@ struct ServerResponse {
 fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
 	use rand::RngCore;
 	
-	let mut common_params = CommonParams::default ();
+	let common_params = CommonParams::default ();
 	let mut bind_addr = "0.0.0.0".to_string ();
 	
 	while let Some (arg) = args.next () {
@@ -208,7 +208,7 @@ fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
 	}
 	
 	let mut peers: Vec <_> = peers.into_iter ().collect ();
-	peers.sort_by_key (|(k, v)| v.mac);
+	peers.sort_by_key (|(_, v)| v.mac);
 	
 	println! ("Found {} peers:", peers.len ());
 	for (ip, resp) in peers.into_iter () {
@@ -236,7 +236,7 @@ fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
 
 fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError> 
 {
-	let mut common_params = CommonParams::default ();
+	let common_params = CommonParams::default ();
 	let mut bind_addr = "0.0.0.0".to_string ();
 	let mut nickname = String::new ();
 	

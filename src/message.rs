@@ -138,28 +138,6 @@ impl Message {
 		Ok (cursor.into_inner ())
 	}
 	
-	fn read1 <R: std::io::Read> (r: &mut R) -> Result <Self, MessageError> {
-		let t = tlv::Reader::u8 (r)?;
-		
-		Ok (match t {
-			1 => {
-				let mut idem_id = [0u8; 8];
-				r.read_exact (&mut idem_id)?;
-				
-				let mac = Self::read_mac_opt (r)?;
-				Self::Request1 {
-					idem_id,
-					mac,
-				}
-			},
-			2 => {
-				let mac = Self::read_mac_opt (r)?;
-				Self::Response1 (mac)
-			},
-			_ => return Err (MessageError::UnknownType),
-		})
-	}
-	
 	fn read2 <R: std::io::Read> (r: &mut R) -> Result <Self, MessageError> {
 		let t = tlv::Reader::u8 (r)?;
 		
@@ -179,24 +157,12 @@ impl Message {
 				Self::Response1 (mac)
 			},
 			3 => {
-				let mut len = [0; 4];
-				r.read_exact (&mut len)?;
-				let _len = len;
+				tlv::Reader::<_>::length (r)?;
 				
 				let mut idem_id = [0; 8];
 				r.read_exact (&mut idem_id)?;
 				
-				let mut nickname_len = [0; 4];
-				r.read_exact (&mut nickname_len)?;
-				let nickname_len = u32::from_le_bytes (nickname_len);
-				let nickname_len = usize::try_from (nickname_len)?;
-				
-				if nickname_len > 64 {
-					return Err (MessageError::LengthPrefixTooLong ((64, nickname_len)));
-				}
-				
-				let mut nickname = vec! [0u8; nickname_len];
-				r.read_exact (&mut nickname)?;
+				let nickname = tlv::Reader::<_>::lv_bytes_to_vec (r, 64)?;
 				let nickname = String::from_utf8 (nickname)?;
 				
 				Self::Response2 (Response2 {
@@ -219,12 +185,6 @@ impl Message {
 		else {
 			None
 		})
-	}
-	
-	pub fn from_slice1 (buf: &[u8]) -> Result <Self, MessageError> {
-		let mut cursor = Cursor::new (buf);
-		tlv::Reader::expect (&mut cursor, &MAGIC_NUMBER)?;
-		Self::read1 (&mut cursor)
 	}
 	
 	pub fn from_slice2 (buf: &[u8]) -> Result <Vec <Self>, MessageError> {
@@ -373,80 +333,6 @@ mod test {
 			let encoded = Message::many_to_vec (&input).unwrap ();
 			let decoded = Message::from_slice2 (&encoded).unwrap ();
 			assert_eq! (input, decoded);
-		}
-	}
-	
-	#[test]
-	fn test_read_1 () {
-		for input in [
-			Message::Request1 {
-				idem_id: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
-				mac: None,
-			},
-			Message::Response1 (Some ([0x11, 0x22, 0x33, 0x44, 0x55, 0x66])),
-			Message::Response1 (None),
-		].into_iter () {
-			let encoded = input.to_vec ().unwrap ();
-			let decoded = Message::from_slice1 (&encoded).unwrap ();
-			assert_eq! (input, decoded);
-		}
-		
-		for (expected, input) in [
-			(
-				Message::Request1 {
-					idem_id: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
-					mac: None,
-				},
-				vec! [
-					154, 74, 67, 129,
-					// Request tag
-					1,
-					// Idem ID
-					1, 2, 3, 4, 5, 6, 7, 8,
-					// MAC is None
-					0,
-				],
-			),
-			(
-				Message::Response1 (Some ([0x11, 0x22, 0x33, 0x44, 0x55, 0x66])), 
-				vec! [
-					// Magic number for LookAround packets
-					154, 74, 67, 129,
-					// Response tag
-					2, 
-					// MAC is Some
-					1,
-					// MAC
-					17, 34, 51, 68, 85, 102,
-				],
-			),
-			(
-				Message::Response1 (None), 
-				vec! [
-					// Magic number for LookAround packets
-					154, 74, 67, 129,
-					// Response tag
-					2, 
-					// MAC is None
-					0,
-				],
-			),
-			(
-				Message::Response1 (None), 
-				vec! [
-					// Magic number for LookAround packets
-					154, 74, 67, 129,
-					// Response tag
-					2, 
-					// MAC is None
-					0,
-					// New tag that older versions will just ignore
-					255,
-				],
-			),
-		].into_iter () {
-			let actual = Message::from_slice1 (&input).unwrap ();
-			assert_eq! (actual, expected, "{:?}", actual);
 		}
 	}
 }
