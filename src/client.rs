@@ -250,7 +250,7 @@ fn get_peer_nickname (
 	peer_nickname: Option <String>
 ) -> Option <String>
 {
-	match peer_nickname.as_ref ().map (String::as_str) {
+	match peer_nickname.as_deref () {
 		None => (),
 		Some ("") => (),
 		_ => return peer_nickname,
