@@ -92,7 +92,7 @@ impl Message {
 				Self::write_response_2 (&mut dummy_writer, x)?;
 				
 				// Write length and real params to real output
-				let len = u32::try_from (dummy_writer.position).unwrap ();
+				let len = u32::try_from (dummy_writer.position)?;
 				w.write_all (&len.to_le_bytes ())?;
 				Self::write_response_2 (w, x)?;
 			},
@@ -206,7 +206,7 @@ mod test {
 	use super::*;
 	
 	#[test]
-	fn test_write_2 () {
+	fn test_write_2 () -> Result <(), MessageError> {
 		for (input, expected) in [
 			(
 				vec! [
@@ -254,13 +254,15 @@ mod test {
 				],
 			),
 		] { 
-			let actual = Message::many_to_vec (&input).unwrap ();
+			let actual = Message::many_to_vec (&input)?;
 			assert_eq! (actual, expected, "{:?}", input);
 		}
+		
+		Ok (())
 	}
 	
 	#[test]
-	fn test_write_1 () {
+	fn test_write_1 () -> Result <(), MessageError> {
 		for (input, expected) in [
 			(
 				Message::Request1 {
@@ -302,13 +304,15 @@ mod test {
 				],
 			),
 		].into_iter () {
-			let actual = input.to_vec ().unwrap ();
+			let actual = input.to_vec ()?;
 			assert_eq! (actual, expected, "{:?}", input);
 		}
+		
+		Ok (())
 	}
 	
 	#[test]
-	fn test_read_2 () {
+	fn test_read_2 () -> Result <(), MessageError> {
 		for input in [
 			vec! [
 				Message::Request1 {
@@ -330,9 +334,11 @@ mod test {
 				}),
 			],
 		].into_iter () {
-			let encoded = Message::many_to_vec (&input).unwrap ();
-			let decoded = Message::from_slice2 (&encoded).unwrap ();
+			let encoded = Message::many_to_vec (&input)?;
+			let decoded = Message::from_slice2 (&encoded)?;
 			assert_eq! (input, decoded);
 		}
+		
+		Ok (())
 	}
 }

@@ -29,9 +29,9 @@ pub async fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), App
 		println! ("Warning: Can't find our own MAC address. We won't be able to respond to MAC-specific lookaround requests");
 	}
 	
-	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::from_str (&bind_addr)?, common_params.server_port)).await.unwrap ();
+	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::from_str (&bind_addr)?, common_params.server_port)).await?;
 	
-	socket.join_multicast_v4 (common_params.multicast_addr, [0u8, 0, 0, 0].into ()).unwrap ();
+	socket.join_multicast_v4 (common_params.multicast_addr, [0u8, 0, 0, 0].into ())?;
 	
 	let mut recent_idem_ids = Vec::with_capacity (32);
 	
@@ -72,7 +72,7 @@ pub async fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), App
 		};
 		
 		if let Some (resp) = resp {
-			socket.send_to (&Message::many_to_vec (&resp)?, remote_addr).await.unwrap ();
+			socket.send_to (&Message::many_to_vec (&resp)?, remote_addr).await?;
 		}
 	}
 }

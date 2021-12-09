@@ -90,15 +90,17 @@ impl <R: std::io::Read> Reader <R> {
 
 #[cfg (test)]
 mod test {
+	use super::*;
+	
 	#[test]
-	fn test_1 () {
+	fn test_1 () -> Result <()> {
 		use std::io::Cursor;
 		
 		let b = "hi there".as_bytes ();
 		
 		let mut w = Cursor::new (Vec::default ());
 		
-		super::Writer::lv_bytes (&mut w, b).unwrap ();
+		super::Writer::lv_bytes (&mut w, b)?;
 		
 		let v = w.into_inner ();
 		
@@ -110,9 +112,11 @@ mod test {
 		
 		let mut r = Cursor::new (v);
 		
-		let buf = super::Reader::lv_bytes_to_vec (&mut r, 1024).unwrap ();
+		let buf = Reader::lv_bytes_to_vec (&mut r, 1024)?;
 		
 		assert_eq! (buf.len (), b.len ());
-		assert_eq! (b, &buf [0..usize::try_from (buf.len ()).unwrap ()]);
+		assert_eq! (b, &buf);
+		
+		Ok (())
 	}
 }
