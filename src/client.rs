@@ -97,8 +97,6 @@ async fn listen_for_responses (
 	socket: &UdpSocket, 
 	peers: &mut HashMap <SocketAddr, ServerResponse>
 ) {
-	let start_time = Instant::now ();
-	
 	loop {
 		let (msgs, remote_addr) = match recv_msg_from (socket).await {
 			Err (_) => continue,
@@ -118,9 +116,6 @@ async fn listen_for_responses (
 			}
 		}
 		
-		if peers.insert (remote_addr, resp).is_none () {
-			let now = Instant::now ();
-			// println! ("Added peer at {} ms", (now - start_time).as_millis ());
-		}
+		peers.insert (remote_addr, resp);
 	}
 }

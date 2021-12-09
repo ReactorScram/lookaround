@@ -71,8 +71,6 @@ Use a longer timeout if some servers need longer than 500 ms to respond:
 lookaround client --timeout-ms 1000
 ```
 
-For less common uses, see [the command-line documentation.](docs/cli.md)
-
 ## Contributing
 Pull requests are welcome. This is a hobby project, so I may reject 
 contributions that are too big to review.
