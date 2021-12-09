@@ -29,7 +29,7 @@ Use the Cargo package manager from [Rust](https://rustup.rs/) to install LookAro
 cargo install lookaround
 ```
 
-To run the server as a normal user all the time, 
+To auto-start the server as a normal user. 
 put this systemd unit in `~/.config/systemd/user/lookaround.service`:
 
 ```ini
@@ -53,34 +53,33 @@ systemctl --user enable lookaround
 ```
 
 ## Usage
-Run the server manually: (If you haven't installed it with systemd yet)
+Run the server manually: (If you didn't configure auto-start)
 
 ```bash
 lookaround server --nickname my-desktop
 ```
 
-Use `find-nick` to find an IP, or ping it, or SSH into it, or pull a file from it:
+On a client computer:
 
 ```bash
+# Use the `find-nick` subcommnad to find an IP...
 lookaround find-nick laptop
+# Prints `192.168.1.101`
 
+# Or ping it...
 ping $(lookaround find-nick laptop)
 
+# Or SSH to it...
 ssh user@$(lookaround find-nick laptop)
 
-# After starting `nc -l -p 9000 < some-file` on the laptop
+# Or pull a file from it
+# (after starting `nc -l -p 9000 < some-file` on the laptop)
 nc $(lookaround find-nick laptop) 9000
-``
 
-Run a client to ping all servers in the same multi-cast domain:
-
-```bash
+# Use the `client` subcommand to find all servers in the same multicast domain
 lookaround client
-```
 
-Use a longer timeout if some servers need longer than 500 ms to respond:
-
-```bash
+# Use a longer timeout if servers need more than 500 ms to respond
 lookaround client --timeout-ms 1000
 ```
 
