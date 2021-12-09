@@ -10,14 +10,21 @@ pub async fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), Ap
 	
 	let common_params = app_common::Params::default ();
 	let mut bind_addrs = vec! [];
+	let mut timeout_ms = 500;
 	
 	while let Some (arg) = args.next () {
 		match arg.as_str () {
 			"--bind-addr" => {
 				bind_addrs.push (match args.next () {
 					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
-					Some (x) => Ipv4Addr::from_str (&x)?
+					Some (x) => Ipv4Addr::from_str (&x)?,
 				});
+			},
+			"--timeout-ms" => {
+				timeout_ms = match args.next () {
+					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
+					Some (x) => u64::from_str (&x)?,
+				};
 			},
 			_ => return Err (CliArgError::UnrecognizedArgument (arg).into ()),
 		}
@@ -43,14 +50,21 @@ pub async fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), Ap
 		mac: None,
 	}.to_vec ()?;
 	
-	for _ in 0..10 {
-		socket.send_to (&msg, (common_params.multicast_addr, common_params.server_port)).await?;
-		sleep (Duration::from_millis (100)).await;
-	}
+	let socket = Arc::new (socket);
+	let socket2 = Arc::clone (&socket);
+	
+	tokio::spawn (async move {
+		for _ in 0..10 {
+			socket2.send_to (&msg, (common_params.multicast_addr, common_params.server_port)).await?;
+			sleep (Duration::from_millis (100)).await;
+		}
+		
+		Ok::<_, AppError> (())
+	});
 	
 	let mut peers = HashMap::with_capacity (10);
 	
-	timeout (Duration::from_secs (2), listen_for_responses (&socket, &mut peers)).await.ok ();
+	timeout (Duration::from_millis (timeout_ms), listen_for_responses (&*socket, &mut peers)).await.ok ();
 	
 	let mut peers: Vec <_> = peers.into_iter ().collect ();
 	peers.sort_by_key (|(_, v)| v.mac);
@@ -83,6 +97,8 @@ async fn listen_for_responses (
 	socket: &UdpSocket, 
 	peers: &mut HashMap <SocketAddr, ServerResponse>
 ) {
+	let start_time = Instant::now ();
+	
 	loop {
 		let (msgs, remote_addr) = match recv_msg_from (socket).await {
 			Err (_) => continue,
@@ -102,6 +118,9 @@ async fn listen_for_responses (
 			}
 		}
 		
-		peers.insert (remote_addr, resp);
+		if peers.insert (remote_addr, resp).is_none () {
+			let now = Instant::now ();
+			// println! ("Added peer at {} ms", (now - start_time).as_millis ());
+		}
 	}
 }

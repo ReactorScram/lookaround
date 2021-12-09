@@ -65,6 +65,12 @@ Run a client to ping all servers in the same multi-cast domain:
 lookaround client
 ```
 
+Use a longer timeout if some servers need longer than 500 ms to respond:
+
+```bash
+lookaround client --timeout-ms 1000
+```
+
 Check which IP addresses LookAround will auto-detect:
 
 ```bash

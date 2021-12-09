@@ -17,6 +17,8 @@ pub enum AppError {
 	#[error (transparent)]
 	Message (#[from] crate::message::MessageError),
 	#[error (transparent)]
+	ParseInt (#[from] std::num::ParseIntError),
+	#[error (transparent)]
 	Tlv (#[from] crate::tlv::TlvError),
 }
 
