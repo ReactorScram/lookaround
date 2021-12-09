@@ -5,7 +5,6 @@ use std::{
 		Ipv4Addr,
 		SocketAddr,
 		SocketAddrV4,
-		UdpSocket,
 	},
 	str::FromStr,
 	time::{Duration, Instant},
@@ -16,6 +15,11 @@ use mac_address::{
 	get_mac_address,
 };
 use thiserror::Error;
+use tokio::{
+	net::UdpSocket,
+	select,
+	time::sleep,
+};
 
 mod ip;
 mod message;
@@ -76,7 +80,10 @@ impl Default for CommonParams {
 }
 
 fn main () -> Result <(), AppError> {
-	let rt = tokio::runtime::Builder::new_current_thread ().build ()?;
+	let rt = tokio::runtime::Builder::new_current_thread ()
+	.enable_io ()
+	.enable_time ()
+	.build ()?;
 	
 	rt.block_on (async_main ())?;
 	
@@ -100,9 +107,9 @@ async fn async_main () -> Result <(), AppError> {
 	
 	match subcommand.as_ref ().map (|x| &x[..]) {
 		None => return Err (CliArgError::MissingSubcommand.into ()),
-		Some ("client") => client (args)?,
+		Some ("client") => client (args).await?,
 		Some ("my-ips") => my_ips ()?,
-		Some ("server") => server (args)?,
+		Some ("server") => server (args).await?,
 		Some (x) => return Err (CliArgError::UnknownSubcommand (x.to_string ()).into ()),
 	}
 	
@@ -145,7 +152,7 @@ struct ServerResponse {
 	nickname: Option <String>,
 }
 
-fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
+async fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
 	use rand::RngCore;
 	
 	let common_params = CommonParams::default ();
@@ -163,10 +170,9 @@ fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
 		}
 	}
 	
-	let socket = UdpSocket::bind (&format! ("{}:0", bind_addr))?;
+	let socket = UdpSocket::bind (&format! ("{}:0", bind_addr)).await?;
 	
-	socket.join_multicast_v4 (&common_params.multicast_addr, &Ipv4Addr::from_str (&bind_addr)?)?;
-	socket.set_read_timeout (Some (Duration::from_millis (1_000)))?;
+	socket.join_multicast_v4 (common_params.multicast_addr, Ipv4Addr::from_str (&bind_addr)?)?;
 	
 	let mut idem_id = [0u8; 8];
 	rand::thread_rng ().fill_bytes (&mut idem_id);
@@ -177,7 +183,7 @@ fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
 	}.to_vec ()?;
 	
 	for _ in 0..10 {
-		socket.send_to (&msg, (common_params.multicast_addr, common_params.server_port))?;
+		socket.send_to (&msg, (common_params.multicast_addr, common_params.server_port)).await?;
 		std::thread::sleep (Duration::from_millis (100));
 	}
 	
@@ -186,7 +192,12 @@ fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
 	let mut peers = HashMap::with_capacity (10);
 	
 	while Instant::now () < start_time + Duration::from_secs (2) {
-		let (msgs, remote_addr) = match recv_msg_from (&socket) {
+		let x = select! {
+			x = recv_msg_from (&socket) => x,
+			() = sleep (Duration::from_millis (1_000)) => continue,
+		};
+		
+		let (msgs, remote_addr) = match x {
 			Err (_) => continue,
 			Ok (x) => x,
 		};
@@ -234,7 +245,7 @@ fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
 	Ok (())
 }
 
-fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError> 
+async fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError> 
 {
 	let common_params = CommonParams::default ();
 	let mut bind_addr = "0.0.0.0".to_string ();
@@ -263,15 +274,15 @@ fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError>
 		println! ("Warning: Can't find our own MAC address. We won't be able to respond to MAC-specific lookaround requests");
 	}
 	
-	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::from_str (&bind_addr)?, common_params.server_port)).unwrap ();
+	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::from_str (&bind_addr)?, common_params.server_port)).await.unwrap ();
 	
-	socket.join_multicast_v4 (&common_params.multicast_addr, &([0u8, 0, 0, 0].into ())).unwrap ();
+	socket.join_multicast_v4 (common_params.multicast_addr, [0u8, 0, 0, 0].into ()).unwrap ();
 	
 	let mut recent_idem_ids = Vec::with_capacity (32);
 	
 	loop {
 		println! ("Waiting for messages...");
-		let (req_msgs, remote_addr) = recv_msg_from (&socket)?;
+		let (req_msgs, remote_addr) = recv_msg_from (&socket).await?;
 		
 		let req = match req_msgs.into_iter ().next () {
 			Some (x) => x,
@@ -306,15 +317,15 @@ fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError>
 		};
 		
 		if let Some (resp) = resp {
-			socket.send_to (&Message::many_to_vec (&resp)?, remote_addr).unwrap ();
+			socket.send_to (&Message::many_to_vec (&resp)?, remote_addr).await.unwrap ();
 		}
 	}
 }
 
-fn recv_msg_from (socket: &UdpSocket) -> Result <(Vec <Message>, SocketAddr), AppError> 
+async fn recv_msg_from (socket: &UdpSocket) -> Result <(Vec <Message>, SocketAddr), AppError> 
 {
 	let mut buf = vec! [0u8; PACKET_SIZE];
-	let (bytes_recved, remote_addr) = socket.recv_from (&mut buf)?;
+	let (bytes_recved, remote_addr) = socket.recv_from (&mut buf).await?;
 	buf.truncate (bytes_recved);
 	let msgs = Message::from_slice2 (&buf)?;
 	
