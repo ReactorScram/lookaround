@@ -47,8 +47,6 @@ async fn async_main () -> Result <(), AppError> {
 
 fn my_ips () -> Result <(), AppError> {
 	for addr in ip::get_ips ()?
-	.iter ()
-	.filter (|a| ! a.is_loopback ())
 	{
 		println! ("{:?}", addr);
 	}

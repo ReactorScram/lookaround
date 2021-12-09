@@ -11,6 +11,8 @@ pub enum AppError {
 	#[error (transparent)]
 	Ip (#[from] crate::ip::IpError),
 	#[error (transparent)]
+	Join (#[from] tokio::task::JoinError),
+	#[error (transparent)]
 	MacAddr (#[from] mac_address::MacAddressError),
 	#[error (transparent)]
 	Message (#[from] crate::message::MessageError),
@@ -40,6 +42,7 @@ pub async fn recv_msg_from (socket: &UdpSocket) -> Result <(Vec <Message>, Socke
 	Ok ((msgs, remote_addr))
 }
 
+#[derive (Clone)]
 pub struct Params {
 	// Servers bind on this port, clients must send to the port
 	pub server_port: u16,

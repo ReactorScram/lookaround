@@ -54,6 +54,7 @@ pub mod linux {
 		.filter_map (|l| l.strip_prefix ("inet "))
 		.filter_map (|l| l.find ('/').map (|x| &l [0..x]))
 		.filter_map (|l| Ipv4Addr::from_str (l).ok ())
+		.filter (|a| ! a.is_loopback ())
 		.collect ()
 	}
 }
