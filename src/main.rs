@@ -7,7 +7,7 @@ use std::{
 		SocketAddrV4,
 	},
 	str::FromStr,
-	time::{Duration, Instant},
+	time::{Duration},
 };
 
 use mac_address::{
@@ -17,8 +17,10 @@ use mac_address::{
 use thiserror::Error;
 use tokio::{
 	net::UdpSocket,
-	select,
-	time::sleep,
+	time::{
+		sleep,
+		timeout,
+	},
 };
 
 mod ip;
@@ -184,39 +186,12 @@ async fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppErr
 	
 	for _ in 0..10 {
 		socket.send_to (&msg, (common_params.multicast_addr, common_params.server_port)).await?;
-		std::thread::sleep (Duration::from_millis (100));
+		sleep (Duration::from_millis (100)).await;
 	}
-	
-	let start_time = Instant::now ();
 	
 	let mut peers = HashMap::with_capacity (10);
 	
-	while Instant::now () < start_time + Duration::from_secs (2) {
-		let x = select! {
-			x = recv_msg_from (&socket) => x,
-			() = sleep (Duration::from_millis (1_000)) => continue,
-		};
-		
-		let (msgs, remote_addr) = match x {
-			Err (_) => continue,
-			Ok (x) => x,
-		};
-		
-		let mut resp = ServerResponse {
-			mac: None,
-			nickname: None,
-		};
-		
-		for msg in msgs.into_iter () {
-			match msg {
-				Message::Response1 (x) => resp.mac = x,
-				Message::Response2 (x) => resp.nickname = Some (x.nickname),
-				_ => (),
-			}
-		}
-		
-		peers.insert (remote_addr, resp);
-	}
+	timeout (Duration::from_secs (2), listen_for_responses (&socket, &mut peers)).await.ok ();
 	
 	let mut peers: Vec <_> = peers.into_iter ().collect ();
 	peers.sort_by_key (|(_, v)| v.mac);
@@ -243,6 +218,33 @@ async fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppErr
 	}
 	
 	Ok (())
+}
+
+async fn listen_for_responses (
+	socket: &UdpSocket, 
+	peers: &mut HashMap <SocketAddr, ServerResponse>
+) {
+	loop {
+		let (msgs, remote_addr) = match recv_msg_from (socket).await {
+			Err (_) => continue,
+			Ok (x) => x,
+		};
+		
+		let mut resp = ServerResponse {
+			mac: None,
+			nickname: None,
+		};
+		
+		for msg in msgs.into_iter () {
+			match msg {
+				Message::Response1 (x) => resp.mac = x,
+				Message::Response2 (x) => resp.nickname = Some (x.nickname),
+				_ => (),
+			}
+		}
+		
+		peers.insert (remote_addr, resp);
+	}
 }
 
 async fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError> 
