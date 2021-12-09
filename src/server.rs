@@ -37,7 +37,13 @@ pub async fn server <I: Iterator <Item=String>> (mut args: I) -> Result <(), App
 	
 	loop {
 		println! ("Waiting for messages...");
-		let (req_msgs, remote_addr) = recv_msg_from (&socket).await?;
+		let (req_msgs, remote_addr) = match recv_msg_from (&socket).await {
+			Ok (x) => x,
+			Err (e) => {
+				println! ("Error while receiving message: {:?}", e);
+				continue;
+			},
+		};
 		
 		let req = match req_msgs.into_iter ().next () {
 			Some (x) => x,
