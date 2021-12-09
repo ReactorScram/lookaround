@@ -10,6 +10,27 @@ pub enum IpError {
 	Io (#[from] std::io::Error),
 	#[error (transparent)]
 	FromUtf8 (#[from] std::string::FromUtf8Error),
+	#[error ("Self-IP detection is not implemented on Mac OS")]
+	NotImplementedOnMac,
+}
+
+#[cfg(target_os = "linux")]
+pub fn get_ips () -> Result <Vec <Ipv4Addr>, IpError> {
+	let output = linux::get_ip_addr_output ()?;
+	
+	Ok (linux::parse_ip_addr_output (&output))
+}
+
+#[cfg(target_os = "macos")]
+pub fn get_ips () -> Result <Vec <Ipv4Addr>, IpError> {
+	Err (IpError::NotImplementedOnMac)
+}
+
+#[cfg(target_os = "windows")]
+pub fn get_ips () -> Result <Vec <Ipv4Addr>, IpError> {
+	let output = windows::get_ip_config_output ()?;
+	
+	Ok (windows::parse_ip_config_output (&output))
 }
 
 #[cfg(target_os = "linux")]

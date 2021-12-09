@@ -45,11 +45,8 @@ async fn async_main () -> Result <(), AppError> {
 	Ok (())
 }
 
-#[cfg(target_os = "linux")]
 fn my_ips () -> Result <(), AppError> {
-	let output = ip::linux::get_ip_addr_output ()?;
-	
-	for addr in ip::linux::parse_ip_addr_output (&output)
+	for addr in ip::get_ips ()?
 	.iter ()
 	.filter (|a| ! a.is_loopback ())
 	{
@@ -58,21 +55,3 @@ fn my_ips () -> Result <(), AppError> {
 	
 	Ok (())
 }
-
-#[cfg(target_os = "macos")]
-fn my_ips () -> Result <(), AppError> {
-	println! ("my-ips subcommand not implemented for macos");
-	Ok (())
-}
-
-#[cfg(target_os = "windows")]
-fn my_ips () -> Result <(), AppError> {
-	let output = ip::windows::get_ip_config_output ()?;
-	
-	for addr in ip::windows::parse_ip_config_output (&output) {
-		println! ("{:?}", addr);
-	}
-	
-	Ok (())
-}
-
