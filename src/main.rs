@@ -24,19 +24,12 @@ async fn async_main () -> Result <(), AppError> {
 	
 	let _exe_name = args.next ();
 	
-	match get_mac_address() {
-		Ok(Some(ma)) => {
-			println!("Our MAC addr = {}", ma);
-		}
-		Ok(None) => println!("No MAC address found."),
-		Err(e) => println!("{:?}", e),
-	}
-	
 	let subcommand: Option <String> = args.next ();
 	
 	match subcommand.as_ref ().map (|x| &x[..]) {
 		None => return Err (CliArgError::MissingSubcommand.into ()),
 		Some ("client") => client::client (args).await?,
+		Some ("find-nick") => client::find_nick (args).await?,
 		Some ("my-ips") => my_ips ()?,
 		Some ("server") => server::server (args).await?,
 		Some (x) => return Err (CliArgError::UnknownSubcommand (x.to_string ()).into ()),

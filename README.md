@@ -59,6 +59,19 @@ Run the server manually: (If you haven't installed it with systemd yet)
 lookaround server --nickname my-desktop
 ```
 
+Use `find-nick` to find an IP, or ping it, or SSH into it, or pull a file from it:
+
+```bash
+lookaround find-nick laptop
+
+ping $(lookaround find-nick laptop)
+
+ssh user@$(lookaround find-nick laptop)
+
+# After starting `nc -l -p 9000 < some-file` on the laptop
+nc $(lookaround find-nick laptop) 9000
+``
+
 Run a client to ping all servers in the same multi-cast domain:
 
 ```bash

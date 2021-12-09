@@ -10,6 +10,14 @@ struct Params {
 
 pub async fn server <I: Iterator <Item=String>> (args: I) -> Result <(), AppError> 
 {
+	match get_mac_address() {
+		Ok(Some(ma)) => {
+			println!("Our MAC addr = {}", ma);
+		}
+		Ok(None) => println!("No MAC address found."),
+		Err(e) => println!("{:?}", e),
+	}
+	
 	let params = configure (args)?;
 	
 	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, params.common.server_port)).await?;

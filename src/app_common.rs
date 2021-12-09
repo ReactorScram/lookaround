@@ -6,6 +6,8 @@ pub enum AppError {
 	AddrParse (#[from] std::net::AddrParseError),
 	#[error (transparent)]
 	CliArgs (#[from] CliArgError),
+	#[error ("Operation timed out")]
+	Elapsed (#[from] tokio::time::error::Elapsed),
 	#[error (transparent)]
 	Io (#[from] std::io::Error),
 	#[error (transparent)]
@@ -26,6 +28,8 @@ pub enum AppError {
 pub enum CliArgError {
 	#[error ("Missing value for argument `{0}`")]
 	MissingArgumentValue (String),
+	#[error ("Missing required argument <{0}>")]
+	MissingRequiredArg (String),
 	#[error ("First argument should be a subcommand")]
 	MissingSubcommand,
 	#[error ("Unknown subcommand `{0}`")]

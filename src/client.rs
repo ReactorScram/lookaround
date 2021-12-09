@@ -12,10 +12,17 @@ struct ClientParams {
 }
 
 pub async fn client <I: Iterator <Item=String>> (args: I) -> Result <(), AppError> {
+	match get_mac_address() {
+		Ok(Some(ma)) => {
+			println!("Our MAC addr = {}", ma);
+		}
+		Ok(None) => println!("No MAC address found."),
+		Err(e) => println!("{:?}", e),
+	}
+	
 	let params = configure_client (args)?;
 	let socket = make_socket (&params).await?;
 	let msg = Message::new_request1 ().to_vec ()?;
-	
 	tokio::spawn (send_requests (Arc::clone (&socket), params.common, msg));
 	
 	let mut peers = HashMap::with_capacity (10);
@@ -45,6 +52,64 @@ pub async fn client <I: Iterator <Item=String>> (args: I) -> Result <(), AppErro
 		
 		println! ("{} = {} `{}`", MacAddress::new (mac), ip.ip (), nickname);
 	}
+	
+	Ok (())
+}
+
+pub async fn find_nick <I: Iterator <Item=String>> (mut args: I) -> Result <(), AppError> 
+{
+	let mut nick = None;
+	let mut timeout_ms = 500;
+	
+	while let Some (arg) = args.next () {
+		match arg.as_str () {
+			"--timeout-ms" => {
+				timeout_ms = match args.next () {
+					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
+					Some (x) => u64::from_str (&x)?,
+				};
+			},
+			_ => nick = Some (arg),
+		}
+	}
+	
+	let needle_nick = nick.ok_or_else (|| CliArgError::MissingRequiredArg ("nickname".to_string ()))?;
+	let needle_nick = Some (needle_nick);
+	
+	let params = ClientParams {
+		common: Default::default (),
+		bind_addrs: get_ips ()?,
+		timeout_ms,
+	};
+	
+	let socket = make_socket (&params).await?;
+	let msg = Message::new_request1 ().to_vec ()?;
+	tokio::spawn (send_requests (Arc::clone (&socket), params.common, msg));
+	
+	timeout (Duration::from_millis (params.timeout_ms), async move { loop {
+		let (msgs, remote_addr) = match recv_msg_from (&socket).await {
+			Err (_) => continue,
+			Ok (x) => x,
+		};
+		
+		let mut resp = ServerResponse {
+			mac: None,
+			nickname: None,
+		};
+		
+		for msg in msgs.into_iter () {
+			match msg {
+				Message::Response1 (x) => resp.mac = x,
+				Message::Response2 (x) => resp.nickname = Some (x.nickname),
+				_ => (),
+			}
+		}
+		
+		if resp.nickname == needle_nick {
+			println! ("{}", remote_addr.ip ());
+			return;
+		}
+	}}).await?;
 	
 	Ok (())
 }
