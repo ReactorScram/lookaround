@@ -5,66 +5,22 @@ struct ServerResponse {
 	nickname: Option <String>,
 }
 
-pub async fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), AppError> {
-	use rand::RngCore;
+struct ClientParams {
+	common: app_common::Params,
+	bind_addrs: Vec <Ipv4Addr>,
+	timeout_ms: u64,
+}
+
+pub async fn client <I: Iterator <Item=String>> (args: I) -> Result <(), AppError> {
+	let params = configure_client (args)?;
+	let socket = make_socket (&params).await?;
+	let msg = Message::new_request1 ().to_vec ()?;
 	
-	let common_params = app_common::Params::default ();
-	let mut bind_addrs = vec! [];
-	let mut timeout_ms = 500;
-	
-	while let Some (arg) = args.next () {
-		match arg.as_str () {
-			"--bind-addr" => {
-				bind_addrs.push (match args.next () {
-					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
-					Some (x) => Ipv4Addr::from_str (&x)?,
-				});
-			},
-			"--timeout-ms" => {
-				timeout_ms = match args.next () {
-					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
-					Some (x) => u64::from_str (&x)?,
-				};
-			},
-			_ => return Err (CliArgError::UnrecognizedArgument (arg).into ()),
-		}
-	}
-	
-	if bind_addrs.is_empty () {
-		bind_addrs = get_ips ()?;
-	}
-	
-	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, 0)).await?;
-	
-	for bind_addr in bind_addrs {
-		if let Err (e) = socket.join_multicast_v4 (common_params.multicast_addr, bind_addr) {
-			println! ("Error joining multicast group with iface {}: {:?}", bind_addr, e);
-		}
-	}
-	
-	let mut idem_id = [0u8; 8];
-	rand::thread_rng ().fill_bytes (&mut idem_id);
-	
-	let msg = Message::Request1 {
-		idem_id,
-		mac: None,
-	}.to_vec ()?;
-	
-	let socket = Arc::new (socket);
-	let socket2 = Arc::clone (&socket);
-	
-	tokio::spawn (async move {
-		for _ in 0..10 {
-			socket2.send_to (&msg, (common_params.multicast_addr, common_params.server_port)).await?;
-			sleep (Duration::from_millis (100)).await;
-		}
-		
-		Ok::<_, AppError> (())
-	});
+	tokio::spawn (send_requests (Arc::clone (&socket), params.common, msg));
 	
 	let mut peers = HashMap::with_capacity (10);
 	
-	timeout (Duration::from_millis (timeout_ms), listen_for_responses (&*socket, &mut peers)).await.ok ();
+	timeout (Duration::from_millis (params.timeout_ms), listen_for_responses (&*socket, &mut peers)).await.ok ();
 	
 	let mut peers: Vec <_> = peers.into_iter ().collect ();
 	peers.sort_by_key (|(_, v)| v.mac);
@@ -91,6 +47,68 @@ pub async fn client <I : Iterator <Item=String>> (mut args: I) -> Result <(), Ap
 	}
 	
 	Ok (())
+}
+
+fn configure_client <I: Iterator <Item=String>> (mut args: I) 
+-> Result <ClientParams, AppError>
+{
+	let mut bind_addrs = vec! [];
+	let mut timeout_ms = 500;
+	
+	while let Some (arg) = args.next () {
+		match arg.as_str () {
+			"--bind-addr" => {
+				bind_addrs.push (match args.next () {
+					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
+					Some (x) => Ipv4Addr::from_str (&x)?,
+				});
+			},
+			"--timeout-ms" => {
+				timeout_ms = match args.next () {
+					None => return Err (CliArgError::MissingArgumentValue (arg).into ()),
+					Some (x) => u64::from_str (&x)?,
+				};
+			},
+			_ => return Err (CliArgError::UnrecognizedArgument (arg).into ()),
+		}
+	}
+	
+	if bind_addrs.is_empty () {
+		bind_addrs = get_ips ()?;
+	}
+	
+	Ok (ClientParams {
+		common: Default::default (),
+		bind_addrs,
+		timeout_ms,
+	})
+}
+
+async fn make_socket (params: &ClientParams) -> Result <Arc <UdpSocket>, AppError> {
+	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, 0)).await?;
+	
+	for bind_addr in &params.bind_addrs {
+		if let Err (e) = socket.join_multicast_v4 (params.common.multicast_addr, *bind_addr) {
+			println! ("Error joining multicast group with iface {}: {:?}", bind_addr, e);
+		}
+	}
+	
+	Ok (Arc::new (socket))
+}
+
+async fn send_requests (
+	socket: Arc <UdpSocket>, 
+	params: app_common::Params,
+	msg: Vec <u8>,
+) 
+-> Result <(), AppError> 
+{
+	for _ in 0..10 {
+		socket.send_to (&msg, (params.multicast_addr, params.server_port)).await?;
+		sleep (Duration::from_millis (100)).await;
+	}
+	
+	Ok::<_, AppError> (())
 }
 
 async fn listen_for_responses (

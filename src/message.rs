@@ -1,13 +1,4 @@
-use std::{
-	io::{
-		Cursor,
-		Write,
-	},
-};
-
-use crate::tlv;
-
-use thiserror::Error;
+use crate::prelude::*;
 
 const MAGIC_NUMBER: [u8; 4] = [0x9a, 0x4a, 0x43, 0x81];
 pub const PACKET_SIZE: usize = 1024;
@@ -27,13 +18,25 @@ pub enum Message {
 	Response2 (Response2),
 }
 
+impl Message {
+	pub fn new_request1 () -> Message {
+		let mut idem_id = [0u8; 8];
+		rand::thread_rng ().fill_bytes (&mut idem_id);
+		
+		Message::Request1 {
+			idem_id,
+			mac: None,
+		}
+	}
+}
+
 #[derive (Debug, PartialEq)]
 pub struct Response2 {
 	pub idem_id: [u8; 8],
 	pub nickname: String,
 }
 
-#[derive (Debug, Error)]
+#[derive (Debug, thiserror::Error)]
 pub enum MessageError {
 	#[error (transparent)]
 	Io (#[from] std::io::Error),

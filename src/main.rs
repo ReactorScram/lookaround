@@ -6,7 +6,7 @@ mod ip;
 pub mod message;
 mod prelude;
 mod server;
-mod tlv;
+pub mod tlv;
 
 fn main () -> Result <(), AppError> {
 	let rt = tokio::runtime::Builder::new_current_thread ()
