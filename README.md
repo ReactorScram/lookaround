@@ -3,9 +3,6 @@
 
 _Has this ever happened to you?_
 
-LookAround is a Rust program for looking up your computers' MAC and IP addresses
-within a LAN. There's no central server, so it's not a look-up, it's a look-around.
-
 ```text
 $ lookaround client
 
@@ -15,12 +12,14 @@ Found 3 peers:
 33:33:33:33:33:33 = 192.168.1.103 `old-laptop`
 ```
 
-The LookAround client uses IP multicast to find LookAround servers within the
-same multicast domain.
+LookAround is a Rust program for looking up your computers' MAC and IP addresses
+within a LAN. There's no central server, so it's not a look-up, it's a look-around.
 
-MAC addresses change slower than IP addresses, so if you know that
-`11:11:11:11:11:11` is your laptop, and your laptop is running LookAround,
-LookAround will find the IP for you.
+The client uses IP multicast to find servers within the
+same multicast domain, similar to Avahi and Bonjour.
+
+Systems self-identify by MAC address and nicknames. Public keys with
+TOFU semantics are intended before v1.0.0.
 
 ## Installation
 
@@ -57,13 +56,19 @@ systemctl --user enable lookaround
 Run the server manually: (If you haven't installed it with systemd yet)
 
 ```bash
-lookaround server
+lookaround server --nickname my-desktop
 ```
 
 Run a client to ping all servers in the same multi-cast domain:
 
 ```bash
 lookaround client
+```
+
+Check which IP addresses LookAround will auto-detect:
+
+```bash
+lookaround my-ips
 ```
 
 ## Contributing
