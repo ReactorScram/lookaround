@@ -19,29 +19,48 @@ Found 3 peers:
 LookAround is a Rust program for looking up your computers' MAC and IP addresses
 within a LAN. There's no central server, so it's not a look-up, it's a look-around.
 
-The client uses IP multicast to find servers within the
-same multicast domain, similar to Avahi and Bonjour.
+## Installing
 
-Systems self-identify by MAC address and nicknames. Public keys with
-TOFU semantics are intended before v1.0.0.
-
-## Installation
-
-Use the Cargo package manager from [Rust](https://rustup.rs/) to install LookAround.
+Make sure Cargo is installed from [RustUp.](https://rustup.rs/)
 
 ```bash
+# Install LookAround with Cargo
 cargo install lookaround
+
+# Find your config directory
+# Prints something like `Using config dir "/home/user/.config/lookaround"`
+lookaround config
 ```
 
-To auto-start the server as a normal user. 
-put this systemd unit in `~/.config/systemd/user/lookaround.service`:
+Create the files `client.ini` and/or `server.ini` in that directory
+(e.g. /home/user/.config/lookaround/server.ini)
+
+```ini
+# Clients can store MAC-nickname pairs in client.ini, like a hosts file.
+# This is useful if your servers are short-lived and you want the clients
+# to be the source of truth for nicknames.
+[nicknames]
+11-11-11-11-11-11 = laptop
+22-22-22-22-22-22 = desktop
+```
+
+```ini
+# Long-lived servers can have their nickname configured in server.ini
+[server]
+nickname = my-computer
+```
+
+## Auto-Start (Linux)
+
+Put this systemd unit in `~/.config/systemd/user/lookaround.service`:
 
 ```ini
 [Unit]
 Description=LookAround
 
 [Service]
-ExecStart=/home/user/.cargo/bin/lookaround server --nickname my-desktop
+ExecStart=/home/user/.cargo/bin/lookaround server
+Restart=always
 
 [Install]
 WantedBy=default.target
@@ -56,11 +75,19 @@ systemctl --user status lookaround
 systemctl --user enable lookaround
 ```
 
+## Auto-Start (Windows)
+
+(untested)
+
+- Create a shortcut to the LookAround exe
+- Change the shortcut's target to end in `lookaround.exe server` so it will run the server
+- Cut-paste the shortcut into the Startup folder in `C:\ProgramData\somewhere`
+
 ## Usage
-Run the server manually: (If you didn't configure auto-start)
+Run the server manually: (To test before installing)
 
 ```bash
-lookaround server --nickname my-desktop
+lookaround server --nickname my-computer
 ```
 
 On a client computer:

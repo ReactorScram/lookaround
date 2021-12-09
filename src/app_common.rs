@@ -2,6 +2,10 @@ use crate::prelude::*;
 
 pub const LOOKAROUND_VERSION: &'static str = env! ("CARGO_PKG_VERSION");
 
+pub fn find_project_dirs () -> Option <ProjectDirs> {
+	ProjectDirs::from ("", "ReactorScram", "LookAround")
+}
+
 #[derive (Debug, thiserror::Error)]
 pub enum AppError {
 	#[error (transparent)]

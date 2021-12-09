@@ -18,6 +18,8 @@ pub use std::{
 	},
 };
 
+pub use configparser::ini::Ini;
+pub use directories::ProjectDirs;
 pub use mac_address::{
 	MacAddress,
 	get_mac_address,
@@ -37,6 +39,7 @@ pub use crate::{
 		LOOKAROUND_VERSION,
 		AppError,
 		CliArgError,
+		find_project_dirs,
 		recv_msg_from,
 	},
 	ip::get_ips,

@@ -12,6 +12,7 @@ repository = "https://six-five-six-four.com/git/reactor/lookaround"
 version = "0.1.6"
 
 [dependencies]
+configparser = "3.0.0"
 directories = "4.0.1"
 mac_address = "1.1.2"
 rand = "0.8.4"

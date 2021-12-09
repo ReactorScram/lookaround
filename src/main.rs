@@ -30,6 +30,7 @@ async fn async_main () -> Result <(), AppError> {
 		None => return Err (CliArgError::MissingSubcommand.into ()),
 		Some ("--version") => println! ("lookaround v{}", LOOKAROUND_VERSION),
 		Some ("client") => client::client (args).await?,
+		Some ("config") => config (),
 		Some ("find-nick") => client::find_nick (args).await?,
 		Some ("my-ips") => my_ips ()?,
 		Some ("server") => server::server (args).await?,
@@ -37,6 +38,15 @@ async fn async_main () -> Result <(), AppError> {
 	}
 	
 	Ok (())
+}
+
+fn config () {
+	if let Some (proj_dirs) = ProjectDirs::from ("", "ReactorScram", "LookAround") {
+		println! ("Using config dir {:?}", proj_dirs.config_dir ());
+	}
+	else {
+		println! ("Can't detect config dir.");
+	}
 }
 
 fn my_ips () -> Result <(), AppError> {

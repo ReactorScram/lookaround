@@ -39,6 +39,23 @@ fn configure <I: Iterator <Item=String>> (mut args: I) -> Result <Params, AppErr
 	let mut bind_addrs = vec![];
 	let mut nickname = String::new ();
 	
+	if let Some (proj_dirs) = find_project_dirs () {
+		let mut ini = Ini::new_cs ();
+		let path = proj_dirs.config_dir ().join ("server.ini");
+		if ini.load (&path).is_ok () {
+			if let Some (x) = ini.get ("server", "nickname") {
+				nickname = x;
+				eprintln! ("Loaded nickname {:?}", nickname);
+			}
+		}
+		else {
+			eprintln! ("Can't load ini from {:?}, didn't load default configs", path);
+		}
+	}
+	else {
+		eprintln! ("Can't find config dir, didn't load default configs");
+	}
+	
 	while let Some (arg) = args.next () {
 		match arg.as_str () {
 			"--bind-addr" => {
