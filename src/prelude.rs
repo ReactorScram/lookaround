@@ -29,6 +29,7 @@ pub use crate::{
 		CliArgError,
 		recv_msg_from,
 	},
+	ip::get_ips,
 	message::{
 		self,
 		PACKET_SIZE,
