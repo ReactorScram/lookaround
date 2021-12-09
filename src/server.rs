@@ -12,28 +12,13 @@ pub async fn server <I: Iterator <Item=String>> (args: I) -> Result <(), AppErro
 {
 	let params = configure (args)?;
 	
-	// This was too hard to do in a functional style
-	let mut tasks = vec! [];
+	let socket = UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, params.common.server_port)).await?;
 	
 	for bind_addr in &params.bind_addrs {
-		let socket = match UdpSocket::bind (SocketAddrV4::new (Ipv4Addr::UNSPECIFIED, params.common.server_port)).await {
-			Err (e) => {
-				println! ("Error binding socket: {:?}", e);
-				continue;
-			},
-			Ok (x) => x,
-		};
-		
 		socket.join_multicast_v4 (params.common.multicast_addr, *bind_addr)?;
-		
-		dbg! (bind_addr);
-		
-		tasks.push (tokio::spawn (serve_interface (params.clone (), socket)));
 	}
 	
-	for task in tasks {
-		task.await??;
-	}
+	serve_interface (params, socket).await?;
 	
 	Ok (())
 }
@@ -80,7 +65,10 @@ fn configure <I: Iterator <Item=String>> (mut args: I) -> Result <Params, AppErr
 	})
 }
 
-async fn serve_interface (params: Params, socket: UdpSocket) 
+async fn serve_interface (
+	params: Params, 
+	socket: UdpSocket,
+) 
 -> Result <(), AppError>
 {
 	let mut recent_idem_ids = Vec::with_capacity (32);
