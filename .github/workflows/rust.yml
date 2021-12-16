@@ -18,7 +18,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
     - name: Checkout submodules
-      uses: textbook/git-checkout-submodule-action@master
+      uses: textbook/git-checkout-submodule-action@v2.1.1
     - name: Build
       run: cargo build --verbose
     - name: Run tests
