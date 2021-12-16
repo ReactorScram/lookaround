@@ -41,7 +41,7 @@ fn configure <I: Iterator <Item=String>> (mut args: I) -> Result <Params, AppErr
 	
 	if let Some (proj_dirs) = find_project_dirs () {
 		let mut ini = Ini::new_cs ();
-		let path = proj_dirs.config_dir ().join ("server.ini");
+		let path = proj_dirs.config_local_dir ().join ("server.ini");
 		if ini.load (&path).is_ok () {
 			if let Some (x) = ini.get ("server", "nickname") {
 				nickname = x;

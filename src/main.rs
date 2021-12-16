@@ -44,7 +44,7 @@ async fn async_main () -> Result <(), AppError> {
 
 fn config () {
 	if let Some (proj_dirs) = ProjectDirs::from ("", "ReactorScram", "LookAround") {
-		println! ("Using config dir {:?}", proj_dirs.config_dir ());
+		println! ("Using config dir {:?}", proj_dirs.config_local_dir ());
 	}
 	else {
 		println! ("Can't detect config dir.");

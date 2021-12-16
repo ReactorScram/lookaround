@@ -165,7 +165,7 @@ fn load_config_file () -> ConfigFile {
 	
 	if let Some (proj_dirs) = find_project_dirs () {
 		let mut ini = Ini::new_cs ();
-		let path = proj_dirs.config_dir ().join ("client.ini");
+		let path = proj_dirs.config_local_dir ().join ("client.ini");
 		if ini.load (&path).is_ok () {
 			let map_ref = ini.get_map_ref ();
 			if let Some (x) = map_ref.get ("nicknames") {
