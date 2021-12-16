@@ -1,6 +1,7 @@
 use prelude::*;
 
 pub mod app_common;
+mod avalanche;
 mod client;
 mod ip;
 pub mod message;
@@ -31,6 +32,7 @@ async fn async_main () -> Result <(), AppError> {
 		Some ("--version") => println! ("lookaround v{}", LOOKAROUND_VERSION),
 		Some ("client") => client::client (args).await?,
 		Some ("config") => config (),
+		Some ("debug-avalanche") => avalanche::debug (),
 		Some ("find-nick") => client::find_nick (args).await?,
 		Some ("my-ips") => my_ips ()?,
 		Some ("server") => server::server (args).await?,
