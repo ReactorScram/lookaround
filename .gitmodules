@@ -1,0 +1,3 @@
+[submodule "vendored/directories"]
+	path = vendored/directories
+	url = git@github.com:ReactorScram/directories-rs.git
